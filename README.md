@@ -17,13 +17,13 @@ The guardian fetches things from the 'underworld' of the internet.
 
 ---
 ## Contents
-1. [Key Features](#Key_Features)
+1. [Key Features](#Key-Features)
 2. [Installation](#Installation)
-3. [Usage Examples](#Usage_Examples)
+3. [Usage Examples](#Usage-Examples)
 4. [Configuration](#Configuration)
-5. [Project Structure](#Project_Structure)
-6. [License & Legal](License_&_Legal)
-7. [Roadmap / Todo](#Roadmap/Todo)
+5. [Project Structure](#Project-Structure)
+6. [License & Legal](License-&-Legal)
+7. [Roadmap / Todo](#Roadmap-\-Todo)
 ---
 ## Key Features
 - **Dual-Engine Extraction**: Uses `yt-dlp` for known hosts and a Selenium-based network logger to intercept direct video URLs (`.mp4`, `.m3u8`, etc.) from any site.
@@ -78,9 +78,9 @@ You can manage your settings via the CLI or by editing `Settings.txt` directly.
 
 | Argument | Description |
 |     :---:      |     :---:      |
-| `--config`     | git status |
-| `--list-config` | git diff |
-| `--example-config` | git diff |
+| `--config`     | Opens the settings file in your default text editor. |
+| `--list-config` | Prints all current settings to the terminal. |
+| `--example-config` | Generates a template with all available options. |
 
 Available Settings Highlights:
 - `sort_by`: `artist`, `platform`, `genre`, or `none`.
@@ -99,7 +99,6 @@ Available Settings Highlights:
 ---
 ## License & Legal
 Distributed under the MIT License.
-
 **Disclaimer**: This tool is for technical and educational purposes only. Users are responsible for complying with the terms of service of the websites they visit and ensuring they have the right to download any content.
 ---
 ## Roadmap / Todo
