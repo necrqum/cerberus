@@ -13,7 +13,7 @@
                    / (   /____,__|  )
                   (  |_ (    )  \) _|
                  _/ _)   \   \__/   (_
-         b'ger  (,-(,(,(,/      \,),),)
+                (,-(,(,(,/      \,),),)
 ```
 ---
 <details>
@@ -97,6 +97,9 @@ You can manage your settings via the CLI or by editing `Settings.txt` directly.
 | `--config`     | Opens the settings file in your default text editor. |
 | `--list-config` | Prints all current settings to the terminal. |
 | `--example-config` | Generates a template with all available options. |
+
+`example_settings.txt`:
+![grid](assets/example_settings.txt%20-%20content.png)
 
 Available Settings Highlights:
 - `sort_by`: `artist`, `platform`, `genre`, or `none`.
