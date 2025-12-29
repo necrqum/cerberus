@@ -68,8 +68,13 @@ pip install .
 ```bash
 cerberus --config
 ```
-*Make sure to set your `browser_path` to your local Chrome/Edge `.exe` in the settings file.*
+*Make sure to set your `browser_path` to your local Chrome/Edge or other Chromium-Browser `.exe` in the settings file.*
 
+> [!IMPORTANT]
+> **FFmpeg is required** for merging video/audio tracks and downloading HLS streams - in PATH. 
+> - **Windows:** [Download via Gyann.dev](https://www.gyan.dev/ffmpeg/builds/)
+> - **Linux:** `sudo apt install ffmpeg`
+> - **macOS:** `brew install ffmpeg`
 ---
 ## Usage Examples
 Single Video Download
@@ -99,6 +104,7 @@ You can manage your settings via the CLI or by editing `Settings.txt` directly.
 | `--example-config` | Generates a template with all available options. |
 
 `example_settings.txt`:
+
 ![grid](assets/example_settings.txt%20-%20content.png)
 
 Available Settings Highlights:
