@@ -17,13 +17,13 @@ The guardian fetches things from the 'underworld' of the internet.
 
 ---
 ## Contents
-1. [Key Features](##Key_Features)
-2. [Installation](##Installation)
-3. [Usage Examples](##Usage_Examples)
-4. [Configuration](##Configuration)
-5. [Project Structure](##Project_Structure)
-6. [License & Legal](##License_&_Legal)
-7. [Roadmap / Todo](##Roadmap/Todo)
+1. [Key Features](#Key_Features)
+2. [Installation](#Installation)
+3. [Usage Examples](#Usage_Examples)
+4. [Configuration](#Configuration)
+5. [Project Structure](#Project_Structure)
+6. [License & Legal](License_&_Legal)
+7. [Roadmap / Todo](#Roadmap/Todo)
 ---
 ## Key Features
 - **Dual-Engine Extraction**: Uses ´yt-dlp´ for known hosts and a Selenium-based network logger to intercept direct video URLs (´.mp4´, ´.m3u8´, etc.) from any site.
@@ -38,40 +38,40 @@ The guardian fetches things from the 'underworld' of the internet.
 ---
 ## Installation
 1. **Clone the repository**:
-  ´´´bash
+  ```bash
   git clone https://github.com/yourusername/converter.git
   cd converter
-  ´´´
+  ```
 2. **Install dependencies**:
-  ´´´bash
+  ```bash
   pip install .
-  ´´´
+  ```
 *This will install all required packages: ´selenium´, ´yt-dlp´, ´requests´, ´browser-cookie3´, ´beautifulsoup4´, and ´tqdm´.*
 
 3. **Initial Setup**: Run the config command to generate your ´Settings.txt´:
-  ´´´bash
+  ```bash
   converter --config
-  ´´´
+  ```
 *Make sure to set your ´browser_path´ to your local Chrome/Edge ´.exe´ in the settings file.*
 
 ---
 ## Usage Examples
 Single Video Download
-´´´bash
+```bash
 converter -l "https://example.com/video-page" -p "./my_downloads"
-´´´
+```
 Batch Download (Comma-separated)
-´´´bash
+```bash
 converter -u "https://site1.com/vid1,https://site2.com/vid2"
-´´´
+```
 Download from List File
-´´´bash
+```bash
 converter -r urls.txt
-´´´
+```
 Force yt-dlp Engine
-´´´bash
+```bash
 converter -l "https://youtube.com/watch?v=..." -f
-´´´
+```
 ---
 ## Configuration
 You can manage your settings via the CLI or by editing ´Settings.txt´ directly.
