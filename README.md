@@ -5,9 +5,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey)](#)
-
 ---
-```
 <p align="center">
   <pre>
                 / \_/\____,
@@ -25,8 +23,8 @@
   </pre>
 </p>
 
-```
 ---
+
 <details>
 
 <summary>etymology</summary>
@@ -42,9 +40,12 @@ The guardian fetches things from the 'underworld' of the internet.
 **Cerberus** is a robust Command-Line Interface (CLI) tool designed to fetch and download videos from across the "underworld" of the internet. By combining the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network logging and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp), it can extract media even from websites that don't provide direct download links.
 
 ---
+
 ## Navigation
 [Features](#-key-features) • [Installation](#-installation) • [Usage](#-usage-examples) • [Releases](https://github.com/necrqum/cerberus/releases)
+
 ---
+
 ## Key Features
 - **Dual-Engine Extraction**: Uses `yt-dlp` for known hosts and a Selenium-based network logger to intercept direct video URLs (`.mp4`, `.m3u8`, etc.) from any site.
 
@@ -55,7 +56,9 @@ The guardian fetches things from the 'underworld' of the internet.
 - **Centralized Config**: Automatically creates a configuration directory in `%APPDATA%/.cerberus` (Windows) or `~/.cerberus` (Linux/Mac) to keep your workspace clean.
 
 - **FFmpeg Integration**: Seamlessly handles HLS streams and video conversions using FFmpeg.
+
 ---
+
 ## Installation
 1. **Clone the repository**:
 ```bash
@@ -79,7 +82,9 @@ cerberus --config
 > - **Windows:** [Download via Gyann.dev](https://www.gyan.dev/ffmpeg/builds/)
 > - **Linux:** `sudo apt install ffmpeg`
 > - **macOS:** `brew install ffmpeg`
+
 ---
+
 ## Usage Examples
 Single Video Download
 ```bash
@@ -128,7 +133,9 @@ Available Settings Highlights:
 - `overwrite_existing`: `true` or `false`.
 - `default_quality`: Choose `best`, `worst`, or `specific` resolutions like `720p`.
 - `use_browser_cookies`: Enable to use your browser's login session (useful for restricted sites).
+
 ---
+
 ## Project Structure
 - `cerberus/downloader.py`: The core logic for extraction and downloading.
 
@@ -137,11 +144,15 @@ Available Settings Highlights:
 - `README.md`: Documentation.
 
 - `Settings.txt`: User-specific configurations (generated on first run).
+
 ---
+
 ## License & Legal
 Distributed under the MIT License.
 **Disclaimer**: This tool is for technical and educational purposes only. Users are responsible for complying with the terms of service of the websites they visit and ensuring they have the right to download any content.
+
 ---
+
 ## Roadmap / Todo
 - [ ] Fix overwrite_existing=true parameter logic
 
@@ -154,4 +165,5 @@ Distributed under the MIT License.
 - [x] Add automated metadata-based sorting
 
 - [x] Improve error handling for failed Selenium instances
+
 ---
