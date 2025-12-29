@@ -39,8 +39,8 @@ The guardian fetches things from the 'underworld' of the internet.
 ## Installation
 1. **Clone the repository**:
 ```bash
-  git clone https://github.com/yourusername/converter.git
-  cd converter
+  git clone https://github.com/yourusername/cerberus.git
+  cd cerberus
 ```
 2. **Install dependencies**:
 ```bash
@@ -50,7 +50,7 @@ The guardian fetches things from the 'underworld' of the internet.
 
 3. **Initial Setup**: Run the config command to generate your `Settings.txt`:
 ```bash
-  converter --config
+  cerberus --config
 ```
 *Make sure to set your `browser_path` to your local Chrome/Edge `.exe` in the settings file.*
 
@@ -58,19 +58,19 @@ The guardian fetches things from the 'underworld' of the internet.
 ## Usage Examples
 Single Video Download
 ```bash
-converter -l "https://example.com/video-page" -p "./my_downloads"
+cerberus -l "https://example.com/video-page" -p "./my_downloads"
 ```
 Batch Download (Comma-separated)
 ```bash
-converter -u "https://site1.com/vid1,https://site2.com/vid2"
+cerberus -u "https://site1.com/vid1,https://site2.com/vid2"
 ```
 Download from List File
 ```bash
-converter -r urls.txt
+cerberus -r urls.txt
 ```
 Force yt-dlp Engine
 ```bash
-converter -l "https://youtube.com/watch?v=..." -f
+cerberus -l "https://youtube.com/watch?v=..." -f
 ```
 ---
 ## Configuration
@@ -89,7 +89,7 @@ Available Settings Highlights:
 - `use_browser_cookies`: Enable to use your browser's login session (useful for restricted sites).
 ---
 ## Project Structure
-- `converter/downloader.py`: The core logic for extraction and downloading.
+- `cerberus/downloader.py`: The core logic for extraction and downloading.
 
 - `setup.py`: Package configuration for installation.
 
