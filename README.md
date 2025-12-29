@@ -1,19 +1,30 @@
 # Cerberus
 > @[Necrqum](https://github.com/necrqum) | start: 12/12/2025
+
+[![GitHub Release](https://img.shields.io/github/v/release/necrqum/cerberus?include_prereleases)](https://github.com/necrqum/cerberus/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
+[![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey)](#)
+
 ---
 ```
-                            /\_/\____,
-                  ,___/\_/\ \  ~     /
-                  \     ~  \ )   XXX
-                    XXX     /    /\_/\___,
-                       \o-o/-o-o/   ~    /
-                        ) /     \    XXX
-                       _|    / \ \_/
-                    ,-/   _  \_/   \
-                   / (   /____,__|  )
-                  (  |_ (    )  \) _|
-                 _/ _)   \   \__/   (_
-                (,-(,(,(,/      \,),),)
+<p align="center">
+  <pre>
+                / \_/\____,
+      ,___/\_/\ \  ~     /
+      \    ~  \ )   XXX
+       XXX     /     /\_/\___,
+          \o-o/-o-o/   ~    /
+           ) /     \    XXX
+          _|    / \ \_/
+       ,-/   _  \_/   \
+      / (   /____,__|  )
+     (  |_ (    )  \) _|
+    _/ _)   \   \__/   (_
+   (,-(,(,(,/      \,),),)
+  </pre>
+</p>
+
 ```
 ---
 <details>
@@ -31,14 +42,8 @@ The guardian fetches things from the 'underworld' of the internet.
 **Cerberus** is a robust Command-Line Interface (CLI) tool designed to fetch and download videos from across the "underworld" of the internet. By combining the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network logging and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp), it can extract media even from websites that don't provide direct download links.
 
 ---
-## Contents
-1. [Key Features](#Key-Features)
-2. [Installation](#Installation)
-3. [Usage Examples](#Usage-Examples)
-4. [Configuration](#Configuration)
-5. [Project Structure](#Project-Structure)
-6. [License & Legal](License-&-Legal)
-7. [Roadmap / Todo](#Roadmap-\-Todo)
+## Navigation
+[Features](#-key-features) • [Installation](#-installation) • [Usage](#-usage-examples) • [Releases](https://github.com/necrqum/cerberus/releases)
 ---
 ## Key Features
 - **Dual-Engine Extraction**: Uses `yt-dlp` for known hosts and a Selenium-based network logger to intercept direct video URLs (`.mp4`, `.m3u8`, etc.) from any site.
