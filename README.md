@@ -99,6 +99,7 @@ cerberus -l "https://youtube.com/watch?v=..." -f
 
 </details>
 ---
+
 ## Configuration
 You can manage your settings via the CLI or by editing `Settings.txt` directly.
 
