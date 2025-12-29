@@ -2,6 +2,7 @@
 >by @[Necrqum](https://github.com/necrqum) | start: 12/12/2025
 
 [![GitHub Release](https://img.shields.io/github/v/release/necrqum/cerberus?include_prereleases)](https://github.com/necrqum/cerberus/releases)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![Python Version](https://img.shields.io/badge/python-3.8%2B-blue)](https://www.python.org/downloads/)
 [![Platform](https://img.shields.io/badge/platform-windows%20%7C%20linux%20%7C%20macos-lightgrey)](#)
@@ -42,7 +43,7 @@ The guardian fetches things from the 'underworld' of the internet.
 ---
 
 ## Navigation
-[Features](#-key-features) • [Installation](#-installation) • [Usage](#-usage-examples) • [Releases](https://github.com/necrqum/cerberus/releases)
+[Features](#key-features) • [Installation](#installation) • [Usage](#usage-examples) • [Configuration](#configuration) • [Releases](https://github.com/necrqum/cerberus/releases) • [Project Structure](#project-structure) • [License & Legal](#license--legal) • [Roadmap / Todo](#roadmap--todo)
 
 ---
 
@@ -154,16 +155,10 @@ Distributed under the MIT License.
 ---
 
 ## Roadmap / Todo
-- [ ] Fix overwrite_existing=true parameter logic
-
+- [ ] Fix `overwrite_existing=true` parameter logic
 - [ ] Implement full unit testing suite
+- [ ] **Help wanted:** Fix youtube.com downloads
 
-- [ ] Fix youtube.com downloads
-
-- [x] Centralize program files/config
-
-- [x] Add automated metadata-based sorting
-
-- [x] Improve error handling for failed Selenium instances
+**Want to help?** Please see our [Contributing Guide](CONTRIBUTING.md) to get started! 🚀
 
 ---
