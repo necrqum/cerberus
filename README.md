@@ -18,7 +18,7 @@ The guardian fetches things from the 'underworld' of the internet.
 
 ## Contents
 1. [Key Features](## Key Features)
-2. [Installation](## Installation)
+2. [Installation](##Installation)
 3. [Usage Examples](## Usage Examples)
 4. [Configuration](## Configuration)
 5. [Project Structure](## Project Structure)
