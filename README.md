@@ -104,6 +104,7 @@ cerberus -h
 </details>
 
 ---
+
 ## Configuration
 You can manage your settings via the CLI or by editing `Settings.txt` directly.
 
