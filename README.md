@@ -39,18 +39,18 @@ The guardian fetches things from the 'underworld' of the internet.
 ## Installation
 1. **Clone the repository**:
 ```bash
-  git clone https://github.com/yourusername/cerberus.git
-  cd cerberus
+git clone https://github.com/necrqum/cerberus.git
+cd cerberus
 ```
 2. **Install dependencies**:
 ```bash
-  pip install .
+pip install .
 ```
 *This will install all required packages: `selenium`, `yt-dlp`, `requests`, `browser-cookie3`, `beautifulsoup4`, and `tqdm`.*
 
 3. **Initial Setup**: Run the config command to generate your `Settings.txt`:
 ```bash
-  cerberus --config
+cerberus --config
 ```
 *Make sure to set your `browser_path` to your local Chrome/Edge `.exe` in the settings file.*
 
