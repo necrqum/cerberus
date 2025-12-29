@@ -96,6 +96,7 @@ cerberus -l "https://youtube.com/watch?v=..." -f
 <summary>Every option</summary>
 
 ![help](assets/console_options.png)
+
 </details>
 ---
 ## Configuration
