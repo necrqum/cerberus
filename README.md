@@ -43,7 +43,7 @@ The guardian fetches things from the 'underworld' of the internet.
 ---
 
 ## Navigation
-[Features](#key-features) • [Installation](#installation) • [Usage](#usage-examples) • [Configuration](#configuration) • [Releases](https://github.com/necrqum/cerberus/releases) • [Project Structure](#project-structure) • [License & Legal](#license--legal) • [Roadmap / Todo](#roadmap--todo)
+[Features](#key-features) • [Installation](#installation) • [Usage](#usage-examples) • [Configuration](#configuration) • [Releases](https://github.com/necrqum/cerberus/releases) • [Project Structure](#project-structure) • [License & Legal](#license--legal) • [Roadmap / Todo](#roadmap--todo) • [Changelog](CHANGELOG.md)
 
 ---
 
