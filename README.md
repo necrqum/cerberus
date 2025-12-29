@@ -46,13 +46,13 @@ The guardian fetches things from the 'underworld' of the internet.
   ´´´bash
   pip install .
   ´´´
-  >This will install all required packages: ´selenium´, ´yt-dlp´, ´requests´, ´browser-cookie3´, ´beautifulsoup4´, and ´tqdm´.
+*This will install all required packages: ´selenium´, ´yt-dlp´, ´requests´, ´browser-cookie3´, ´beautifulsoup4´, and ´tqdm´.*
 
 3. **Initial Setup**: Run the config command to generate your ´Settings.txt´:
   ´´´bash
   converter --config
   ´´´
-  >Make sure to set your ´browser_path´ to your local Chrome/Edge ´.exe´ in the settings file.
+*Make sure to set your ´browser_path´ to your local Chrome/Edge ´.exe´ in the settings file.*
 
 ---
 ## Usage Examples
