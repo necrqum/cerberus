@@ -102,9 +102,7 @@ cerberus -h
 ![help](assets/console_options.png)
 
 </details>
-.get to work.
 ---
-
 ## Configuration
 You can manage your settings via the CLI or by editing `Settings.txt` directly.
 
