@@ -1,5 +1,6 @@
 # Cerberus
-
+> @[Necrqum](https://github.com/necrqum) | start: 12/12/2025
+---
 <details>
 
 <summary>etymology</summary>
@@ -14,7 +15,21 @@ The guardian fetches things from the 'underworld' of the internet.
 </details>
 
 **Cerberus** is a robust Command-Line Interface (CLI) tool designed to fetch and download videos from across the "underworld" of the internet. By combining the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network logging and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp), it can extract media even from websites that don't provide direct download links.
-
+---
+```
+                            /\_/\____,
+                  ,___/\_/\ \  ~     /
+                  \     ~  \ )   XXX
+                    XXX     /    /\_/\___,
+                       \o-o/-o-o/   ~    /
+                        ) /     \    XXX
+                       _|    / \ \_/
+                    ,-/   _  \_/   \
+                   / (   /____,__|  )
+                  (  |_ (    )  \) _|
+                 _/ _)   \   \__/   (_
+         b'ger  (,-(,(,(,/      \,),),)
+```
 ---
 ## Contents
 1. [Key Features](#Key-Features)
@@ -111,6 +126,4 @@ Distributed under the MIT License.
 - [x] Add automated metadata-based sorting
 
 - [x] Improve error handling for failed Selenium instances
----
-Created by [Necrqum](https://github.com/necrqum)
 ---
