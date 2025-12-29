@@ -23,7 +23,6 @@
   
 
 The guardian fetches things from the 'underworld' of the internet.
-
 › Read more about the [Ceberus](https://en.wikipedia.org/wiki/Cerberus).
   
 
@@ -93,6 +92,11 @@ Force yt-dlp Engine
 ```bash
 cerberus -l "https://youtube.com/watch?v=..." -f
 ```
+<details>
+<summary>Every option</summary>
+
+![help](assets/console_options.png)
+</details>
 ---
 ## Configuration
 You can manage your settings via the CLI or by editing `Settings.txt` directly.
@@ -130,6 +134,8 @@ Distributed under the MIT License.
 - [ ] Fix overwrite_existing=true parameter logic
 
 - [ ] Implement full unit testing suite
+
+- [ ] Fix youtube.com downloads
 
 - [x] Centralize program files/config
 
