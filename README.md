@@ -1,5 +1,5 @@
 # Cerberus
-> @[Necrqum](https://github.com/necrqum) | start: 12/12/2025
+>by @[Necrqum](https://github.com/necrqum) | start: 12/12/2025
 
 [![GitHub Release](https://img.shields.io/github/v/release/necrqum/cerberus?include_prereleases)](https://github.com/necrqum/cerberus/releases)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
