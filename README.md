@@ -17,13 +17,13 @@ The guardian fetches things from the 'underworld' of the internet.
 ---
 
 ## Contents
-1. [Key Features](## Key Features)
+1. [Key Features](##Key_Features)
 2. [Installation](##Installation)
-3. [Usage Examples](## Usage Examples)
-4. [Configuration](## Configuration)
-5. [Project Structure](## Project Structure)
-6. [License & Legal](## License & Legal)
-7. [Roadmap / Todo](## Roadmap / Todo)
+3. [Usage Examples](##Usage_Examples)
+4. [Configuration](##Configuration)
+5. [Project Structure](##Project_Structure)
+6. [License & Legal](##License_&_Legal)
+7. [Roadmap / Todo](##Roadmap/Todo)
 ---
 
 ## Key Features
