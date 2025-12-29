@@ -92,12 +92,23 @@ Force yt-dlp Engine
 ```bash
 cerberus -l "https://youtube.com/watch?v=..." -f
 ```
+View every available command, with helpfull instructions
+```bash
+cerberus -h
+```
 <details>
-<summary>Every option</summary>
+<summary>View help-output</summary>
 
 ![help](assets/console_options.png)
 
 </details>
+```
+─▄▀─▄▀
+──▀──▀
+█▀▀▀▀▀█▄
+█░░░░░█─█
+▀▄▄▄▄▄▀▀
+```
 ---
 
 ## Configuration
