@@ -1,0 +1,26 @@
+# Python Standard
+__pycache__/
+*.py[cod]
+*$py.class
+venv/
+.env
+
+# Distribution / Build
+build/
+dist/
+*.egg-info/
+
+# Projekt-Spezifisch (WICHTIG!)
+converter.log
+Settings.txt
+Downloads/
+example_settings.txt
+
+# Browser Treiber (falls sie im Ordner liegen)
+*.exe
+chromedriver
+geckodriver
+
+# IDEs
+.vscode/
+.idea/
