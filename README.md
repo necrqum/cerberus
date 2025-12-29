@@ -102,7 +102,7 @@ cerberus -h
 ![help](assets/console_options.png)
 
 </details>
-___
+.get to work.
 ---
 
 ## Configuration
