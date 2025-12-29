@@ -12,134 +12,119 @@ The guardian fetches things from the 'underworld' of the internet.
 
 </details>
 
-**Ein robustes CLI-Skript zum Herunterladen von Videos** aus Webseiten. Unterstützt:
-- `yt_dlp` für bekannte Hosts und komplexe Streams (HLS, DASH, Playlists)
-- Selenium-basiertes Netzwerk-Logging zur Extraktion direkter Video-URLs
-- Nummerierung/Handling von mehreren Videos unter derselben URL (z. B. erome.com)
-- Sortierung in Ordner nach Plattform / Künstler / Genre
-- Konfigurierbare Einstellungen via `Settings.txt`
+**Cerberus** is a robust Command-Line Interface (CLI) tool designed to fetch and download videos from across the "underworld" of the internet. By combining the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network logging and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp), it can extract media even from websites that don't provide direct download links.
 
 ---
 
-## Inhalt
-- `downloader.py` — Hauptskript
-- `Settings.txt` — zentrale Einstellungen (wird erzeugt, falls nicht vorhanden)
-- Downloads gespeichert unter: `%APPDATA%/converter/Downloads` (Windows) bzw. `~/.converter/Downloads` (Linux/Mac) — konfigurierbar
+# Contents
+1. [Key Features](## Key Features)
+2. [Installation](## Installation)
+3. [Usage Examples](## Usage Examples)
+4. [Configuration](## Configuration)
+5. [Project Structure](## Project Structure)
+6. [License & Legal](## License & Legal)
+7. [Roadmap / Todo](## Roadmap / Todo)
+---
+
+## Key Features
+- **Dual-Engine Extraction**: Uses ´yt-dlp´ for known hosts and a Selenium-based network logger to intercept direct video URLs (´.mp4´, ´.m3u8´, etc.) from any site.
+
+- **Smart Session Numbering**: Automatically handles pages with multiple videos. It numbers them (e.g., ´Video(1).mp4´) within a session to ensure no content is skipped.
+
+- **Automatic Sorting**: Organizes your downloads into subfolders based on Platform, Artist, or Genre by parsing metadata and Open Graph tags.
+
+- **Centralized Config**: Automatically creates a configuration directory in ´%APPDATA%/.cerberus´ (Windows) or ´~/.cerberus´ (Linux/Mac) to keep your workspace clean.
+
+- **FFmpeg Integration**: Seamlessly handles HLS streams and video conversions using FFmpeg.
 
 ---
 
-## Voraussetzungen
+## Installation
+1. **Clone the repository**:
+  ´´´bash
+  git clone https://github.com/yourusername/converter.git
+  cd converter
+  ´´´
+2. **Install dependencies**:
+  ´´´bash
+  pip install .
+  ´´´
+  >This will install all required packages: ´selenium´, ´yt-dlp´, ´requests´, ´browser-cookie3´, ´beautifulsoup4´, and ´tqdm´.
 
-- Python 3.8+
-- Chrome (lokal installiert) oder anderer Chromium-Browser (Pfad in Settings setzen)
-- `pip`-Pakete:
-  ```bash
-  pip install -r requirements.txt
-  ```
+3. **Initial Setup**: Run the config command to generate your ´Settings.txt´:
+  ´´´bash
+  converter --config
+  ´´´
+  >Make sure to set your ´browser_path´ to your local Chrome/Edge ´.exe´ in the settings file.
 
-Beispiel ´requirements.txt´
+---
+
+## Usage Examples
+Single Video Download
 ´´´bash
-selenium
-yt_dlp
-requests
-browser-cookie3
-beautifulsoup4
-tqdm
+converter -l "https://example.com/video-page" -p "./my_downloads"
 ´´´
-- FFmpeg (für Postprocessing / Konvertierung) empfohlen und im PATH
-
-# Installation & erster Start
-1. Klone das Repo:
+Batch Download (Comma-separated)
 ´´´bash
-git clone <repo-url>
-cd <repo>
+converter -u "https://site1.com/vid1,https://site2.com/vid2"
 ´´´
-
-2. Installiere Abhängigkeiten:
+Download from List File
 ´´´bash
-pip install -r requirements.txt
+converter -r urls.txt
 ´´´
-
-3. Erzeuge / bearbeite die Settings.txt (wird beim ersten Start erzeugt) oder öffne sie mit:
+Force yt-dlp Engine
 ´´´bash
-python downloader.py --config
-´´´
-
-Minimum: ´browser_path=C:/Path/To/Browser.exe´
-
-# CLI — Beispiele
-- Single-Link herunterladen:
-´´´bash
-python downloader.py -l "https://erome.com/abcd" -p "/home/user/Downloads"
+converter -l "https://youtube.com/watch?v=..." -f
 ´´´
 
-- Mehrere URLs (Comma-separated):
-´´´bash
-python downloader.py -u "https://site1.com/video1,https://site2.com/video2"
-´´´
+---
 
-- Liste aus Datei:
-´´´bash
-python downloader.py -r urls.txt
-´´´
+## Configuration
+You can manage your settings via the CLI or by editing ´Settings.txt´ directly.
 
-- Erzwinge yt_dlp (ohne Selenium):
-´´´bash
-python downloader.py -l "https://example.com" -f
-´´´
+| Argument | Description |
+|     :---:      |     :---:      |
+| ´--config´     | git status |
+| ´--list-config´ | git diff |
+| ´--example-config´ | git diff |
 
-- Qualität:
-´´´bash
-python downloader.py -l "..." -q "720p"
-´´´
+Available Settings Highlights:
+- ´sort_by´: ´artist´, ´platform´, ´genre´, or ´none´.
+- ´overwrite_existing´: ´true´ or ´false´.
+- ´default_quality´: Choose ´best´, ´worst´, or ´specific´ resolutions like ´720p´.
+- ´use_browser_cookies´: Enable to use your browser's login session (useful for restricted sites).
 
-# Verhalten bzgl. Duplikaten / Nummerierung
+---
 
-- ´overwrite_existing=true´ → vorhandene Dateien werden überschrieben.
+## Project Structure
+- ´converter/downloader.py´: The core logic for extraction and downloading.
 
-- ´overwrite_existing=false´ → vorhandene Dateien werden übersprungen (Standard).
+- ´setup.py´: Package configuration for installation.
 
-- **Ausnahme: Wenn eine einzelne URL mehrere Video-Ressourcen** enthält (z. B. mehrere ´<video>´-Tags auf einer Seite oder mehrere ´yt_dlp´-Entries), werden diese als eine Session behandelt und automatisch nummeriert:
+- ´README.md´: Documentation.
 
-    - ´TITLE.mp4´, ´TITLE(1).mp4´, ´TITLE(2).mp4´, ...
-    - Dadurch werden mehrere Videos aus derselben Seite nicht übersprungen.
+- ´Settings.txt´: User-specific configurations (generated on first run).
 
-# Erweiterung & Entwicklung — Hinweise
+---
 
-**Neue Sites**: Für neue Seiten zuerst requests + BeautifulSoup Versuch einbauen (schnell), dann Selenium/yt_dlp fallback.
+## License & Legal
+Distributed under the MIT License.
 
-HLS: Wenn Seite m3u8 liefert, nutze ffmpeg oder yt_dlp für fragmentiertes Streaming.
+**Disclaimer**: This tool is for technical and educational purposes only. Users are responsible for complying with the terms of service of the websites they visit and ensuring they have the right to download any content.
 
-Tests: Schreibe Unit-Tests für Namensauflösung und Integrationstests gegen statische HTML-Mocks.
+---
 
-Sicherheit: Prüfe Nutzungsbedingungen der Download-Quellen; implementiere optional eine Nutzungs-Hinweis/Confirm-Funktion.
+## Roadmap / Todo
+- [ ] Fix overwrite_existing=true parameter logic
 
-FAQ / Troubleshooting
+- [ ] Implement full unit testing suite
 
-Browser-Pfad-Fehler
+- [x] Centralize program files/config
 
-Stelle sicher, dass browser_path in Settings.txt korrekt ist und die exe vorhanden ist.
+- [x] Add automated metadata-based sorting
 
-Selenium startet nicht (Headless/ChromeDriver)
+- [x] Improve error handling for failed Selenium instances
 
-Achte auf kompatible ChromeDriver-Version oder setze chromedriver im PATH. Empfohlen: Verwendung bundlerüber webdriver-manager oder matching driver.
-
-yt_dlp Fehler
-
-Prüfe Logs (converter.log im Konfig-Ordner). Setze ggf. use_browser_cookies=true und exportiere Cookies, falls Inhalte login-geschützt sind.
-
-License & Legal
-
-Dieses Tool ist ein technisches Werkzeug. Der Betreiber ist verantwortlich für die rechtmäßige Nutzung. Bitte beachte Urheberrechte und Nutzungsbedingungen der jeweiligen Seiten.
-
-# Todo
-- [ ] fix 'overwrite_existing=true' parameter
-- [ ] test every parameter
-- [x] centralize programfiles
-- [x] add sorting via website/artist/genre
-- [ ] optimise sorting
-- [ ] optimize error_handling
-- [x] organize code strucure
-- [ ] fix youtube.com -downloads
-- [x] add create download-list feature (links multiple downloads together, without external .txt-file)
-- [x] download-quality-option-parameter (with standartsettings in external .txt-file)
+---
+Created by [Necrqum](https://github.com/necrqum)
+---

@@ -10,6 +10,9 @@ build/
 dist/
 *.egg-info/
 
+# local pip installation
+cerberus.egg-info/
+
 # Projekt-Spezifisch (WICHTIG!)
 converter.log
 Settings.txt
