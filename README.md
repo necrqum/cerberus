@@ -157,9 +157,8 @@ Distributed under the MIT License.
 ## Roadmap / Todo
 - [x] Make default download directory configurable when `use_cwd_as_default=false` (`default_download_dir` setting, `get_default_download_dir()` helper, example_settings.txt updated).
 - [x] Unified progress indicator for Selenium/direct downloads (Selenium `download_media_url()` now reports via `ytdlp_progress_hook`).
-- [ ] Fix progress indicator optics!
+- [ ] Fix progress indicator optics
 - [ ] Fix `overwrite_existing=true` parameter logic
-- [ ] Fix progress-bar optical -errors
 - [ ] Implement full unit testing suite (pytest, unit tests for path resolution, filename)
 - [ ] **Help wanted:** Fix youtube.com downloads
 
