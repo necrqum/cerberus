@@ -155,9 +155,24 @@ Distributed under the MIT License.
 ---
 
 ## Roadmap / Todo
+- [x] Make default download directory configurable when `use_cwd_as_default=false` (`default_download_dir` setting, `get_default_download_dir()` helper, example_settings.txt updated).
+- [x] Einheitliche Fortschrittsanzeige für Selenium-/direkte Downloads (Selenium `download_media_url()` berichtet jetzt über `ytdlp_progress_hook`).
 - [ ] Fix `overwrite_existing=true` parameter logic
-- [ ] Implement full unit testing suite
+- [ ] Implement full unit testing suite (pytest, unit tests for path resolution, filename)
 - [ ] **Help wanted:** Fix youtube.com downloads
+
+- [ ] Implement `--dry-run` mode (simulate steps without performing downloads).
+- [ ] Interactive setup wizard on first run (initial configuration for `browser_path`, `default_download_dir`, and basic validation).
+- [ ] Clearer exit codes for scripting (define and use explicit exit codes; introduce lightweight exception classes like `ConfigError`, `NetworkError`).
+- [ ] Resume support for interrupted downloads (partial files / HTTP range resume).
+- [ ] Parallel downloads with configurable thread/worker count.
+- [ ] Bandwidth limiting / QoS option (per-download and global).
+- [ ] Post-processing hooks (auto-convert, metadata tagging, move/rename rules).
+- [ ] Refactor: split into modules (config, downloader, ytdlp_integration, selenium_adapter, utils).
+- [ ] CI/CD: Linting, type checking (mypy), run tests on push.
+- [ ] Packaging & distribution (pip package, Windows binary).
+- [ ] GUI / Electron / TUI optional frontend for non-CLI users.
+- [ ] Documentation: extended README, examples, ROADMAP.md, templates...
 
 **Want to help?** Please see our [Contributing Guide](CONTRIBUTING.md) to get started! 🚀
 

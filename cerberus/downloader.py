@@ -85,6 +85,24 @@ def print_if_not_ignored(message, settings):
 # Utility Functions
 # ================================
 
+def get_default_download_dir(settings):
+    """
+    Determines the default download directory based on settings.
+    Priority:
+    1) use_cwd_as_default = true  -> current working directory
+    2) default_download_dir = DEFAULT -> DEFAULT_DOWNLOAD_DIR
+    3) default_download_dir = <path>  -> that path
+    """
+    if settings.get('use_cwd_as_default', 'false').lower() == 'true':
+        return os.getcwd()
+
+    custom_dir = settings.get('default_download_dir', 'DEFAULT')
+
+    if not custom_dir or custom_dir.upper() == 'DEFAULT':
+        return DEFAULT_DOWNLOAD_DIR
+
+    return os.path.expanduser(custom_dir)
+
 def open_file(file_path):
     """Opens the given file in the system's default editor."""
     try:
@@ -127,6 +145,8 @@ def load_settings(file_path=SETTINGS_PATH):
         settings['default_quality'] = 'best'
     if 'use_cwd_as_default' not in settings:
         settings['use_cwd_as_default'] = 'false'
+    if 'default_download_dir' not in settings:
+        settings['default_download_dir'] = 'DEFAULT' # will use DEFAULT_DOWNLOAD_DIR
     return settings
 
 def is_output_hidden(settings, args):
@@ -178,6 +198,7 @@ ng_password=your_newgrounds_password
 sort_by=none   # options: none, artist, platform, genre
 default_quality=best   # e.g. best, worst, 720p
 use_cwd_as_default=false   # if true, default save path is current directory
+default_download_dir=DEFAULT   # DEFAULT or absolute path (used when use_cwd_as_default=false)
 """
             )
         print(f"Example configuration created at {example_path}")
@@ -206,10 +227,7 @@ def sort_downloaded_file(file_path, original_url, settings):
         return file_path
 
     # Determine base download directory
-    if settings.get('use_cwd_as_default', 'false').lower() == 'true':
-        base_dir = os.getcwd()
-    else:
-        base_dir = DEFAULT_DOWNLOAD_DIR
+    base_dir = get_default_download_dir(settings)
 
     platform_folder = None
     artist_folder = None
@@ -1003,9 +1021,11 @@ def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_inst
 
 def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3):
     """
-    Robust download + status:
-     - requests streaming mit tqdm wenn Content-Length vorhanden
-     - ffmpeg fallback (mit Headern) wenn server 403/401 oder requests scheitert
+    Robust download + unified progress reporting:
+     - Uses requests streaming and reports progress via ytdlp_progress_hook for a unified look.
+     - Falls Content-Length vorhanden ist -> berechnet Prozent / ETA / Speed.
+     - Bei fehlendem Content-Length -> zeigt laufenden 'downloading' status mit downloaded_bytes.
+     - ffmpeg fallback bleibt erhalten; meldet ebenfalls 'downloading'/'finished'.
     Returns True on success, False on failure.
     """
     if not media_url:
@@ -1030,22 +1050,43 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                     total_size = int(r.headers.get('content-length', 0) or 0)
                     tmp = target_path + ".part"
                     block_size = 1024 * 1024
-                    # If we know total size, use tqdm
-                    if total_size > 0:
-                        with open(tmp, "wb") as fh, tqdm(total=total_size, unit='B', unit_scale=True, desc=os.path.basename(target_path), leave=True) as pbar:
-                            for chunk in r.iter_content(chunk_size=block_size):
-                                if chunk:
-                                    fh.write(chunk)
-                                    pbar.update(len(chunk))
-                    else:
-                        # Unknown total size -> simple progress dots
-                        print(f"Downloading (unknown size): {os.path.basename(target_path)} ...", end='', flush=True)
-                        with open(tmp, "wb") as fh:
-                            for chunk in r.iter_content(chunk_size=block_size):
-                                if chunk:
-                                    fh.write(chunk)
-                        print(" done")
-                    # Retry atomic rename if system sleep interrupted
+
+                    downloaded = 0
+                    start_time = time.time()
+
+                    # Ensure parent dir exists
+                    parent = os.path.dirname(target_path)
+                    if parent:
+                        os.makedirs(parent, exist_ok=True)
+
+                    with open(tmp, "wb") as fh:
+                        for chunk in r.iter_content(chunk_size=block_size):
+                            if not chunk:
+                                continue
+                            fh.write(chunk)
+                            downloaded += len(chunk)
+
+                            # Compute speed and ETA
+                            elapsed = time.time() - start_time
+                            speed = int(downloaded / elapsed) if elapsed > 0 else 0
+                            eta = int((total_size - downloaded) / speed) if (total_size and speed) else None
+
+                            # Build progress dict compatible with ytdlp_progress_hook
+                            progress_dict = {
+                                'status': 'downloading',
+                                'filename': os.path.basename(target_path),
+                                'downloaded_bytes': downloaded,
+                                'total_bytes': total_size,
+                                'speed': speed,
+                                'eta': eta
+                            }
+                            try:
+                                ytdlp_progress_hook(progress_dict)
+                            except Exception:
+                                # Keep downloading even if progress hook fails
+                                pass
+
+                    # Atomic replace
                     try:
                         os.replace(tmp, target_path)
                     except OSError as e:
@@ -1055,7 +1096,6 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                             os.replace(tmp, target_path)
                         except Exception as e2:
                             log_error(f"Second attempt to replace temp file failed: {e2}")
-                            # Clean up temp if exists
                             try:
                                 if os.path.exists(tmp):
                                     os.remove(tmp)
@@ -1063,12 +1103,18 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                                 pass
                             raise
 
+                    # Verify file and call finished hook
                     if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
+                        try:
+                            ytdlp_progress_hook({'status': 'finished', 'filename': os.path.basename(target_path)})
+                        except Exception:
+                            pass
                         return True
                     else:
                         log_error(f"Downloaded file zero-sized or missing after requests: {target_path}")
                         time.sleep(1 + attempt)
                         continue
+
                 elif status in (403, 401):
                     log_info(f"HTTP {status} received for {media_url} - will try ffmpeg fallback (attempt {attempt}).")
                     break  # try ffmpeg next
@@ -1081,8 +1127,14 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
             time.sleep(1 + attempt)
             continue
 
-    # ffmpeg fallback
+    # ffmpeg fallback (unified notifications)
     try:
+        # signal start of ffmpeg fallback using the same hook style (no exact progress possible)
+        try:
+            ytdlp_progress_hook({'status': 'downloading', 'filename': os.path.basename(target_path), 'downloaded_bytes': 0, 'total_bytes': 0, 'speed': 0, 'eta': None})
+        except Exception:
+            pass
+
         print(f"Starting ffmpeg fallback for {os.path.basename(target_path)} ...")
         ff_headers = ""
         ff_headers += f"User-Agent: {ua}\\r\\n"
@@ -1097,6 +1149,10 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
         ]
         proc = subprocess.run(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=900)
         if proc.returncode == 0 and os.path.exists(target_path) and os.path.getsize(target_path) > 0:
+            try:
+                ytdlp_progress_hook({'status': 'finished', 'filename': os.path.basename(target_path)})
+            except Exception:
+                pass
             print(f"ffmpeg finished: {os.path.basename(target_path)}")
             return True
         else:
@@ -1141,10 +1197,8 @@ def main():
     if args.path:
         save_folder = args.path
     else:
-        if settings.get('use_cwd_as_default', 'false').lower() == 'true':
-            save_folder = os.getcwd()
-        else:
-            save_folder = DEFAULT_DOWNLOAD_DIR
+        save_folder = get_default_download_dir(settings)
+
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
 
