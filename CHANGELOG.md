@@ -13,9 +13,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 - Open issue with `overwrite_existing=true` logic.
 
-
 ## [0.1.1] - 2026-26-01
-## Added
+### Added
 - `default_download_dir` setting to allow configuring the default download folder when `use_cwd_as_default=false`.
 - `get_default_download_dir(settings)` helper to centralize default-download-path resolution.
 - Example settings (`example_settings.txt`) and `build_settings()` updated to surface `default_download_dir`.
