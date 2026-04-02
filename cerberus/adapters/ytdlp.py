@@ -205,9 +205,32 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                 if status == 200:
                     total_size = int(r.headers.get('content-length', 0) or 0)
                     tmp = target_path + ".part"
-                    block_size = 1024 * 1024
-
+                    
+                    # Resume logic
                     downloaded = 0
+                    mode = "wb"
+                    headers_resume = headers.copy()
+                    
+                    if os.path.exists(tmp):
+                        downloaded = os.path.getsize(tmp)
+                        if 0 < downloaded < total_size:
+                            headers_resume['Range'] = f"bytes={downloaded}-"
+                            mode = "ab"
+                            log_info(f"Resuming download from byte {downloaded} for {os.path.basename(target_path)}")
+                        else:
+                            downloaded = 0 # Restart if file is same size or larger (corruption?)
+
+                    # Re-request with range if needed
+                    if mode == "ab":
+                        r.close()
+                        r = session.get(media_url, stream=True, timeout=(10, 60), headers=headers_resume)
+                        # Check if server supports range
+                        if r.status_code != 206:
+                            log_info("Server does not support Range requests, restarting download.")
+                            mode = "wb"
+                            downloaded = 0
+
+                    block_size = 1024 * 1024
                     start_time = time.time()
 
                     # Ensure parent dir exists
@@ -215,7 +238,7 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                     if parent:
                         os.makedirs(parent, exist_ok=True)
 
-                    with open(tmp, "wb") as fh:
+                    with open(tmp, mode) as fh:
                         for chunk in r.iter_content(chunk_size=block_size):
                             if stop_download.is_set():
                                 break

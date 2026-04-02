@@ -3,7 +3,10 @@ name: Build and Release Binaries
 on:
   push:
     tags:
-      - 'v*' # Triggers on any version tag (e.g., v0.2.1)
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
@@ -22,6 +25,8 @@ jobs:
 
     steps:
     - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0 # Fetch all history for tags
 
     - name: Set up Python
       uses: actions/setup-python@v3
