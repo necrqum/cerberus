@@ -6,12 +6,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 ## [Unreleased]
 ### Added
-- Plan for Binary distribution improvements.
+- Plan for Bandwidth Limiting.
+
+## [0.2.2] - 2026-04-02
+### Added
+- **Resume Support**: Downloads can now be resumed if interrupted (uses HTTP Range requests).
+- **CI/CD Optimization**: Fixed GitHub Actions to correctly attach binaries to releases without warnings.
 
 ## [0.2.1] - 2026-04-02
 ### Added
-- **Parallel Downloads**: New `-t` / `--threads` argument to download multiple videos simultaneously using `ThreadPoolExecutor`.
-- **Thread-Safe UI**: Implemented thread-local progress bars with `tqdm` to ensure clean terminal output during parallel processing.
+- **Parallel Downloads**: New `-t` / `--threads` argument to download multiple videos simultaneously.
+- **Thread-Safe UI**: Implemented thread-local progress bars with `tqdm`.
 
 ## [0.2.0] - 2026-04-02
 ### Added
