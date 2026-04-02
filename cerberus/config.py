@@ -147,6 +147,59 @@ def open_file(file_path):
     except Exception as e:
         logging.error(f"Error opening file {file_path}: {e}")
 
+def run_setup_wizard():
+    """Interactive setup wizard for first-time configuration."""
+    print("\n" + "="*40)
+    print("      Cerberus Setup Wizard")
+    print("="*40 + "\n")
+    
+    settings = load_settings(SETTINGS_PATH)
+    
+    # 1. Browser Selection
+    detected_browser = detect_browser_path()
+    print(f"Detecting browser... ", end="", flush=True)
+    if detected_browser:
+        print(f"Found: {detected_browser}")
+        use_detected = input(f"Use this browser? [Y/n]: ").strip().lower()
+        if use_detected == 'n':
+            settings['browser_path'] = input("Enter full path to your browser executable: ").strip()
+        else:
+            settings['browser_path'] = detected_browser
+    else:
+        print("Not found.")
+        settings['browser_path'] = input("Enter full path to your browser executable: ").strip()
+    
+    # 2. Download Directory
+    print(f"\nDefault download directory: {DEFAULT_DOWNLOAD_DIR}")
+    use_default_dir = input(f"Use this directory? [Y/n]: ").strip().lower()
+    if use_default_dir == 'n':
+        custom_dir = input("Enter absolute path for downloads: ").strip()
+        settings['default_download_dir'] = custom_dir
+    else:
+        settings['default_download_dir'] = 'DEFAULT'
+    
+    # 3. Other common settings
+    print("\nAdditional Settings:")
+    
+    minimized = input("Run browser in background (minimized)? [Y/n]: ").strip().lower()
+    settings['minimized'] = 'true' if minimized != 'n' else 'false'
+    
+    quality = input("Default video quality (best/worst/720p/etc) [best]: ").strip()
+    settings['default_quality'] = quality if quality else 'best'
+    
+    # Check for FFmpeg
+    print(f"\nChecking for FFmpeg... ", end="", flush=True)
+    ffmpeg_found = shutil.which("ffmpeg")
+    if ffmpeg_found:
+        print(f"Found: {ffmpeg_found}")
+    else:
+        print("NOT FOUND. Please install FFmpeg and add it to your PATH for full functionality.")
+    
+    save_settings(settings)
+    print("\n" + "="*40)
+    print("      Setup Completed Successfully!")
+    print("="*40 + "\n")
+
 def handle_config(args, custom_print_func=print):
     """
     Handles configuration commands:

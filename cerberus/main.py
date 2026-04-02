@@ -7,7 +7,7 @@ import time
 import logging
 
 from .config import (
-    SETTINGS_PATH, load_settings, handle_config, get_default_download_dir
+    SETTINGS_PATH, load_settings, handle_config, get_default_download_dir, run_setup_wizard
 )
 from .utils import (
     log_error, custom_print, print_if_not_ignored
@@ -21,8 +21,13 @@ def is_output_hidden(settings, args):
     """Checks whether console output should be hidden."""
     return settings.get('output_always_hidden', 'false').lower() == 'true' or args.hidden
 
+def sigint_handler(sig, frame):
+    """Handle Ctrl+C gracefully."""
+    stop_download.set()
+
 def main():
     """Main entry point for the command-line interface."""
+    signal.signal(signal.SIGINT, sigint_handler)
     parser = argparse.ArgumentParser(description="Cerberus Video Downloader")
     parser.add_argument('-l', '--link', help="Direct URL to a video", type=str)
     parser.add_argument('-u', '--urls', help="Comma-separated list of URLs to download", type=str)
@@ -34,12 +39,21 @@ def main():
     parser.add_argument('-q', '--quality', help="Download quality (e.g. best, worst, 720p)", type=str)
     
     # Configuration-related arguments
+    group = parser.parse_known_args()[0]
+    parser.add_argument('--setup', action='store_true', help="Run the interactive setup wizard")
     group = parser.add_mutually_exclusive_group()
     group.add_argument('--config', action='store_true', help="Open the configuration file")
     group.add_argument('--list-config', action='store_true', help="Display current configuration settings")
     group.add_argument('--example-config', action='store_true', help="Generate an example configuration file")
     
     args = parser.parse_args()
+
+    # Trigger wizard if Settings.txt doesn't exist or requested via --setup
+    if args.setup or not os.path.exists(SETTINGS_PATH):
+        run_setup_wizard()
+        if args.setup:
+            return
+
     settings = load_settings(SETTINGS_PATH)
     hidden_output = is_output_hidden(settings, args)
     browser_path = settings.get('browser_path')
@@ -104,5 +118,4 @@ def main():
             print(f"Download failed in {elapsed_time:.2f} seconds.")
 
 if __name__ == "__main__":
-    signal.signal(signal.SIGINT, lambda sig, frame: stop_download.set())
     main()

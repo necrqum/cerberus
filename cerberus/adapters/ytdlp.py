@@ -5,8 +5,12 @@ import subprocess
 import requests
 import yt_dlp
 import shutil
+from tqdm import tqdm
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
+
+# Global progress bar instance
+pbar = None
 
 try:
     from ..config import SETTINGS_PATH, load_settings, get_default_download_dir
@@ -51,35 +55,45 @@ def get_yt_dlp_browser(browser_path):
 
 def ytdlp_progress_hook(d):
     """
-    yt_dlp progress hook. Wird von yt_dlp aufgerufen, Status in d['status'].
+    yt_dlp progress hook using tqdm for professional output.
     """
+    global pbar
     try:
         status = d.get('status')
-        filename = d.get('filename') or d.get('info_dict', {}).get('title') or ''
         if status == 'downloading':
-            downloaded = d.get('downloaded_bytes') or 0
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
-            speed = d.get('speed') or 0
-            eta = d.get('eta')
-            if total:
-                pct = downloaded * 100.0 / total
-                pct_str = f"{pct:5.1f}%"
-            else:
-                pct_str = "  ?.%"
-
-            speed_str = f"{human_readable_size(speed)}/s" if speed else "-"
-            eta_str = f"{int(eta)}s" if eta else "-"
-            # Print a single-line progress (carriage return)
-            print(f"\rDownloading: {os.path.basename(filename)} | {pct_str} | {human_readable_size(downloaded)}/{human_readable_size(total) if total else '??'} | {speed_str} | ETA {eta_str}", end='', flush=True)
+            downloaded = d.get('downloaded_bytes') or 0
+            
+            if pbar is None:
+                filename = os.path.basename(d.get('filename', 'video'))
+                pbar = tqdm(
+                    total=total,
+                    unit='B',
+                    unit_scale=True,
+                    unit_divisor=1024,
+                    desc=f"Downloading {filename[:30]}",
+                    leave=True,
+                    dynamic_ncols=True
+                )
+            
+            pbar.n = downloaded
+            pbar.refresh()
+            
         elif status == 'finished':
-            # finish line with newline
-            print()  # finish previous line
-            print(f"Finished: {os.path.basename(d.get('filename') or '')} (saved)")
+            if pbar:
+                pbar.close()
+                pbar = None
+            print(f"Finished: {os.path.basename(d.get('filename', ''))}")
+            
         elif status == 'error':
-            print() 
-            print(f"Error downloading: {d.get('filename') or ''}")
+            if pbar:
+                pbar.close()
+                pbar = None
+            print(f"Error downloading: {os.path.basename(d.get('filename', ''))}")
     except Exception:
-        pass
+        if pbar:
+            pbar.close()
+            pbar = None
 
 def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_instance=None):
     """
@@ -206,19 +220,12 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                             fh.write(chunk)
                             downloaded += len(chunk)
 
-                            # Compute speed and ETA
-                            elapsed = time.time() - start_time
-                            speed = int(downloaded / elapsed) if elapsed > 0 else 0
-                            eta = int((total_size - downloaded) / speed) if (total_size and speed) else None
-
                             # Build progress dict compatible with ytdlp_progress_hook
                             progress_dict = {
                                 'status': 'downloading',
                                 'filename': os.path.basename(target_path),
                                 'downloaded_bytes': downloaded,
                                 'total_bytes': total_size,
-                                'speed': speed,
-                                'eta': eta
                             }
                             try:
                                 ytdlp_progress_hook(progress_dict)
