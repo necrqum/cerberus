@@ -73,6 +73,18 @@ Cerberus uses a centralized configuration located at `~/.Cerberus` (Linux/Mac) o
 | `--list-config` | Prints all current settings to the terminal. |
 | `--example-config` | Generates a template with all available options. |
 
+## 🗺️ Roadmap
+- [x] **v0.2.1**: Parallel Downloads & Automated Binaries.
+- [x] **v0.2.2**: Resume Support (HTTP Range).
+- [ ] **v0.3.0**: Bandwidth Limiting & Speed Throttling.
+- [ ] **v0.4.0**: Interactive Setup Wizard (Extended).
+- [ ] **v1.0.0**: Stable Release & PyPI Distribution.
+
+## 🤝 Contributing & Issues
+Found a bug or have a feature request? We use GitHub Issues to track everything.
+- **Report a Bug**: [Create Bug Report](https://github.com/necrqum/cerberus/issues/new?template=bug_report.md)
+- **Request a Feature**: [Create Feature Request](https://github.com/necrqum/cerberus/issues/new?template=feature_request.md)
+
 ## 🏗️ Project Structure
 - `cerberus/main.py`: CLI Entry point.
 - `cerberus/config.py`: Configuration & Setup Wizard.
