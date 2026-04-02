@@ -41,6 +41,19 @@ pip install .
 cerberus --setup
 ```
 
+## 🔄 Updating Cerberus
+To update your local installation to the latest version, run:
+```bash
+cd cerberus
+git pull origin main
+pip install .  # Ensure dependencies are up to date
+```
+
+## 📦 Downloading Specific Versions
+You can find pre-compiled binaries and source code for all past releases on our [Releases Page](https://github.com/necrqum/cerberus/releases).
+- **Windows**: Download `cerberus.exe`
+- **Linux**: Download `cerberus-linux`
+
 ## 🛠️ Usage Examples
 
 ### Single Video Download
