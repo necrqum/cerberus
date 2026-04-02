@@ -17,19 +17,17 @@ jobs:
         os: [ubuntu-latest, windows-latest]
         include:
           - os: ubuntu-latest
-            artifact_name: cerberus-linux
             asset_name: cerberus-linux
           - os: windows-latest
-            artifact_name: cerberus-windows
             asset_name: cerberus.exe
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
-        fetch-depth: 0 # Fetch all history for tags
+        fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v3
+      uses: actions/setup-python@v5
       with:
         python-version: "3.12"
 
@@ -40,47 +38,51 @@ jobs:
         pip install -r requirements.txt
         pip install .
 
-    - name: Build with PyInstaller
+    - name: Build with PyInstaller (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: |
+        pyinstaller --onefile --name cerberus-linux cerberus/__main__.py
+        ls -l dist/
+
+    - name: Build with PyInstaller (Windows)
+      if: matrix.os == 'windows-latest'
       run: |
         pyinstaller --onefile --name cerberus cerberus/__main__.py
-
-    - name: Rename Artifact (Linux)
-      if: matrix.os == 'ubuntu-latest'
-      run: mv dist/cerberus dist/${{ matrix.asset_name }}
-
-    - name: Rename Artifact (Windows)
-      if: matrix.os == 'windows-latest'
-      run: ren dist\cerberus.exe ${{ matrix.asset_name }}
+        dir dist\
 
     - name: Upload Artifacts
-      uses: actions/upload-artifact@v3
+      uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.artifact_name }}
-        path: dist/${{ matrix.asset_name }}
+        name: ${{ matrix.asset_name }}
+        path: |
+          dist/cerberus-linux
+          dist/cerberus.exe
 
   release:
     name: Create GitHub Release
     needs: build
     runs-on: ubuntu-latest
     steps:
-    - name: Download Linux Artifact
-      uses: actions/download-artifact@v3
+    - name: Download Artifacts
+      uses: actions/download-artifact@v4
       with:
-        name: cerberus-linux
-        path: ./
+        path: ./artifacts
+        pattern: '*'
+        merge-multiple: true
 
-    - name: Download Windows Artifact
-      uses: actions/download-artifact@v3
-      with:
-        name: cerberus-windows
-        path: ./
+    - name: Debug - List Files
+      run: |
+        echo "Listing all files in artifacts directory:"
+        ls -R ./artifacts
 
     - name: Create Release
-      uses: softprops/action-gh-release@v1
+      uses: softprops/action-gh-release@v2
       with:
         files: |
-          cerberus-linux
-          cerberus.exe
+          ./artifacts/cerberus-linux
+          ./artifacts/cerberus.exe
+        tag_name: ${{ github.ref_name }}
+        name: Release ${{ github.ref_name }}
         draft: false
         prerelease: false
         generate_release_notes: true
