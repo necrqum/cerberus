@@ -1,0 +1,83 @@
+name: Build and Release Binaries
+
+on:
+  push:
+    tags:
+      - 'v*' # Triggers on any version tag (e.g., v0.2.1)
+
+jobs:
+  build:
+    name: Build Binary for ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      matrix:
+        os: [ubuntu-latest, windows-latest]
+        include:
+          - os: ubuntu-latest
+            artifact_name: cerberus-linux
+            asset_name: cerberus-linux
+          - os: windows-latest
+            artifact_name: cerberus-windows
+            asset_name: cerberus.exe
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: Set up Python
+      uses: actions/setup-python@v3
+      with:
+        python-version: "3.12"
+
+    - name: Install dependencies
+      run: |
+        python -m pip install --upgrade pip
+        pip install pyinstaller
+        pip install -r requirements.txt
+        pip install .
+
+    - name: Build with PyInstaller
+      run: |
+        pyinstaller --onefile --name cerberus cerberus/__main__.py
+
+    - name: Rename Artifact (Linux)
+      if: matrix.os == 'ubuntu-latest'
+      run: mv dist/cerberus dist/${{ matrix.asset_name }}
+
+    - name: Rename Artifact (Windows)
+      if: matrix.os == 'windows-latest'
+      run: ren dist\cerberus.exe ${{ matrix.asset_name }}
+
+    - name: Upload Artifacts
+      uses: actions/upload-artifact@v3
+      with:
+        name: ${{ matrix.artifact_name }}
+        path: dist/${{ matrix.asset_name }}
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+    - name: Download Linux Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cerberus-linux
+        path: ./
+
+    - name: Download Windows Artifact
+      uses: actions/download-artifact@v3
+      with:
+        name: cerberus-windows
+        path: ./
+
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          cerberus-linux
+          cerberus.exe
+        draft: false
+        prerelease: false
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

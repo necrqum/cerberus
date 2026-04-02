@@ -5,6 +5,7 @@ import signal
 import argparse
 import time
 import logging
+from concurrent.futures import ThreadPoolExecutor
 
 from .config import (
     SETTINGS_PATH, load_settings, handle_config, get_default_download_dir, run_setup_wizard
@@ -37,6 +38,7 @@ def main():
     parser.add_argument('-H', '--hidden', help="Hide all console output", action='store_true')
     parser.add_argument('-f', '--force', help="Force the use of yt_dlp for downloading", action='store_true')
     parser.add_argument('-q', '--quality', help="Download quality (e.g. best, worst, 720p)", type=str)
+    parser.add_argument('-t', '--threads', help="Number of parallel downloads (default: 1)", type=int, default=1)
     
     # Configuration-related arguments
     group = parser.parse_known_args()[0]
@@ -98,24 +100,35 @@ def main():
         parser.print_help()
         return
 
-    # Download each URL
-    for idx, url in enumerate(url_list):
+    def process_video(idx_and_url):
+        idx, url = idx_and_url
         if stop_download.is_set():
-            break
+            return
         
         print_if_not_ignored(f"\n[{idx+1}/{len(url_list)}] Starting download for: {url}", settings)
-        start_time = time.time()
+        start_time_video = time.time()
         final_path = download_video_from_page(
             url, browser_path, save_folder, idx, len(url_list), 
             minimize_browser, overwrite_existing, 
             custom_name=args.name if len(url_list) == 1 else None, 
             force=args.force, quality=quality
         )
-        elapsed_time = time.time() - start_time
+        elapsed_time_video = time.time() - start_time_video
         if final_path:
-            print(f"Download completed in {elapsed_time:.2f} seconds: {final_path}")
+            print(f"[{idx+1}/{len(url_list)}] Completed in {elapsed_time_video:.2f}s: {final_path}")
         else:
-            print(f"Download failed in {elapsed_time:.2f} seconds.")
+            print(f"[{idx+1}/{len(url_list)}] Failed in {elapsed_time_video:.2f}s.")
+
+    # Execute downloads
+    if args.threads > 1:
+        print(f"Starting parallel downloads with {args.threads} threads...")
+        with ThreadPoolExecutor(max_workers=args.threads) as executor:
+            executor.map(process_video, enumerate(url_list))
+    else:
+        for idx_and_url in enumerate(url_list):
+            process_video(idx_and_url)
+            if stop_download.is_set():
+                break
 
 if __name__ == "__main__":
     main()

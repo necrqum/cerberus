@@ -4,10 +4,14 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-
 ## [Unreleased]
 ### Added
-- Plan for parallel download support.
+- Plan for Binary distribution improvements.
+
+## [0.2.1] - 2026-04-02
+### Added
+- **Parallel Downloads**: New `-t` / `--threads` argument to download multiple videos simultaneously using `ThreadPoolExecutor`.
+- **Thread-Safe UI**: Implemented thread-local progress bars with `tqdm` to ensure clean terminal output during parallel processing.
 
 ## [0.2.0] - 2026-04-02
 ### Added
@@ -39,6 +43,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Initial release of Cerberus.
 - Selenium-based network logging for video extraction.
 - yt-dlp integration for fallback and HLS streams.
+...
 - Centralized configuration system (`%APPDATA%` on Windows, `~` on Linux).
 - Automatic sorting by Platform, Artist, and Genre.
 - CLI arguments for single, batch, and file-based downloads.

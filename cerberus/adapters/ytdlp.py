@@ -2,6 +2,7 @@ import os
 import time
 import json
 import subprocess
+import threading
 import requests
 import yt_dlp
 import shutil
@@ -9,8 +10,8 @@ from tqdm import tqdm
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-# Global progress bar instance
-pbar = None
+# Thread-local storage for progress bars
+thread_local = threading.local()
 
 try:
     from ..config import SETTINGS_PATH, load_settings, get_default_download_dir
@@ -55,45 +56,48 @@ def get_yt_dlp_browser(browser_path):
 
 def ytdlp_progress_hook(d):
     """
-    yt_dlp progress hook using tqdm for professional output.
+    yt_dlp progress hook using thread-local tqdm for professional parallel output.
     """
-    global pbar
+    if not hasattr(thread_local, 'pbar'):
+        thread_local.pbar = None
+        
     try:
         status = d.get('status')
         if status == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             downloaded = d.get('downloaded_bytes') or 0
             
-            if pbar is None:
+            if thread_local.pbar is None:
                 filename = os.path.basename(d.get('filename', 'video'))
-                pbar = tqdm(
+                thread_local.pbar = tqdm(
                     total=total,
                     unit='B',
                     unit_scale=True,
                     unit_divisor=1024,
                     desc=f"Downloading {filename[:30]}",
-                    leave=True,
+                    leave=False, # cleaner for parallel
+                    position=None, # let tqdm handle nesting if possible
                     dynamic_ncols=True
                 )
             
-            pbar.n = downloaded
-            pbar.refresh()
+            thread_local.pbar.n = downloaded
+            thread_local.pbar.refresh()
             
         elif status == 'finished':
-            if pbar:
-                pbar.close()
-                pbar = None
+            if thread_local.pbar:
+                thread_local.pbar.close()
+                thread_local.pbar = None
             print(f"Finished: {os.path.basename(d.get('filename', ''))}")
             
         elif status == 'error':
-            if pbar:
-                pbar.close()
-                pbar = None
+            if thread_local.pbar:
+                thread_local.pbar.close()
+                thread_local.pbar = None
             print(f"Error downloading: {os.path.basename(d.get('filename', ''))}")
     except Exception:
-        if pbar:
-            pbar.close()
-            pbar = None
+        if hasattr(thread_local, 'pbar') and thread_local.pbar:
+            thread_local.pbar.close()
+            thread_local.pbar = None
 
 def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_instance=None):
     """
