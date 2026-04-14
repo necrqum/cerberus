@@ -3,6 +3,7 @@ import platform
 import subprocess
 import shutil
 import logging
+from datetime import datetime
 
 # ================================
 # Central Configuration Management
@@ -25,11 +26,18 @@ def get_config_dir():
 CONFIG_DIR = get_config_dir()
 SETTINGS_PATH = os.path.join(CONFIG_DIR, "Settings.txt")
 LOG_PATH = os.path.join(CONFIG_DIR, "Cerberus.log")
+LOGS_DIR = os.path.join(CONFIG_DIR, "Logs")
 DEFAULT_DOWNLOAD_DIR = os.path.join(CONFIG_DIR, "Downloads")
 
-# Ensure default download folder exists
-if not os.path.exists(DEFAULT_DOWNLOAD_DIR):
-    os.makedirs(DEFAULT_DOWNLOAD_DIR)
+# Ensure necessary folders exist
+for folder in [CONFIG_DIR, DEFAULT_DOWNLOAD_DIR, LOGS_DIR]:
+    if not os.path.exists(folder):
+        os.makedirs(folder)
+
+def get_session_log_path():
+    """Generates a unique log path for the current session based on timestamp."""
+    timestamp = datetime.now().strftime("%Y-%m-%d_%H-%M-%S")
+    return os.path.join(LOGS_DIR, f"Cerberus_{timestamp}.log")
 
 def detect_browser_path():
     """

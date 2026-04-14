@@ -8,10 +8,11 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 
 from .config import (
-    SETTINGS_PATH, load_settings, handle_config, get_default_download_dir, run_setup_wizard
+    SETTINGS_PATH, load_settings, handle_config, get_default_download_dir, 
+    run_setup_wizard, get_session_log_path
 )
 from .utils import (
-    log_error, custom_print, print_if_not_ignored
+    log_error, custom_print, print_if_not_ignored, setup_logging
 )
 from .downloader import (
     download_video_from_page
@@ -28,6 +29,10 @@ def sigint_handler(sig, frame):
 
 def main():
     """Main entry point for the command-line interface."""
+    # Initialize session-specific logging
+    session_log_path = get_session_log_path()
+    setup_logging(session_log_path)
+    
     signal.signal(signal.SIGINT, sigint_handler)
     parser = argparse.ArgumentParser(description="Cerberus Video Downloader")
     parser.add_argument('-l', '--link', help="Direct URL to a video", type=str)
@@ -39,6 +44,7 @@ def main():
     parser.add_argument('-f', '--force', help="Force the use of yt_dlp for downloading", action='store_true')
     parser.add_argument('-q', '--quality', help="Download quality (e.g. best, worst, 720p)", type=str)
     parser.add_argument('-t', '--threads', help="Number of parallel downloads (default: 1)", type=int, default=1)
+    parser.add_argument('-b', '--limit-rate', help="Maximum download speed (e.g. 500K, 1M)", type=str)
     
     # Configuration-related arguments
     group = parser.parse_known_args()[0]
@@ -62,6 +68,7 @@ def main():
     minimize_browser = settings.get('minimized', 'false').lower() == 'true'
     overwrite_existing = settings.get('overwrite_existing', 'false').lower() == 'true'
     quality = args.quality or settings.get('default_quality', 'best')
+    limit_rate = args.limit_rate or settings.get('default_limit_rate')
 
     # Determine default save folder based on settings/use of -p
     if args.path:
@@ -111,7 +118,7 @@ def main():
             url, browser_path, save_folder, idx, len(url_list), 
             minimize_browser, overwrite_existing, 
             custom_name=args.name if len(url_list) == 1 else None, 
-            force=args.force, quality=quality
+            force=args.force, quality=quality, limit_rate=limit_rate
         )
         elapsed_time_video = time.time() - start_time_video
         if final_path:

@@ -2,11 +2,43 @@ import os
 import re
 import threading
 import logging
+import sys
 
 # ================================
 # Logging Setup
 # ================================
 logger = logging.getLogger("cerberus")
+
+def setup_logging(log_path):
+    """
+    Sets up the logging configuration.
+    Writes to both a file and the console.
+    """
+    logger.setLevel(logging.DEBUG)
+
+    # Formatter with timestamp, level, thread name, and message
+    formatter = logging.Formatter(
+        "%(asctime)s [%(levelname)s] [%(threadName)s] %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S"
+    )
+
+    # Console Handler
+    console_handler = logging.StreamHandler(sys.stdout)
+    console_handler.setFormatter(formatter)
+    console_handler.setLevel(logging.INFO)
+    logger.addHandler(console_handler)
+
+    # File Handler
+    try:
+        file_handler = logging.FileHandler(log_path, encoding="utf-8")
+        file_handler.setFormatter(formatter)
+        file_handler.setLevel(logging.DEBUG)
+        logger.addHandler(file_handler)
+    except Exception as e:
+        print(f"Error setting up file logger: {e}")
+
+    # Prevent duplicate logs if main.py is reloaded or something
+    logger.propagate = False
 
 def log_info(message):
     logger.info(message)

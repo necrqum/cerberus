@@ -99,6 +99,19 @@ def ytdlp_progress_hook(d):
             thread_local.pbar.close()
             thread_local.pbar = None
 
+def parse_rate_limit(rate_str):
+    """Parses strings like '500K', '1M' into bytes per second."""
+    if not rate_str:
+        return None
+    try:
+        rate_str = rate_str.upper().strip()
+        units = {'K': 1024, 'M': 1024*1024, 'G': 1024*1024*1024}
+        if rate_str[-1] in units:
+            return int(float(rate_str[:-1]) * units[rate_str[-1]])
+        return int(rate_str)
+    except Exception:
+        return None
+
 def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_instance=None):
     """
     Versucht, aus einem entry-Objekt eine konkrete media-URL und Meta zurückzugeben.
@@ -180,9 +193,9 @@ def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_inst
 
     return None, {}
 
-def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3):
+def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3, limit_rate=None):
     """
-    Robust download + unified progress reporting.
+    Robust download + unified progress reporting with bandwidth limiting.
     """
     if not media_url:
         return False
@@ -192,6 +205,9 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
     headers = {'User-Agent': ua}
     if referer:
         headers['Referer'] = referer
+
+    # Parse rate limit
+    bytes_per_second = parse_rate_limit(limit_rate)
 
     session = requests.Session()
     session.headers.update(headers)
@@ -244,8 +260,17 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                                 break
                             if not chunk:
                                 continue
+                            
+                            chunk_start = time.time()
                             fh.write(chunk)
                             downloaded += len(chunk)
+
+                            # Bandwidth limiting
+                            if bytes_per_second:
+                                elapsed = time.time() - chunk_start
+                                expected_time = len(chunk) / bytes_per_second
+                                if elapsed < expected_time:
+                                    time.sleep(expected_time - elapsed)
 
                             # Build progress dict compatible with ytdlp_progress_hook
                             progress_dict = {
@@ -419,7 +444,7 @@ def sort_downloaded_file(file_path, original_url, settings):
         log_error(f"Error moving file to sorted folder: {e}")
         return file_path
 
-def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None):
+def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None):
     """
     Robust yt_dlp handler:
      - extracts info once
@@ -445,6 +470,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
         'useragent': settings.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'),
         'socket_timeout': int(settings.get('socket_timeout', 60)),
         'retries': int(settings.get('retries', 10)),
+        'ratelimit': parse_rate_limit(limit_rate),
     }
     
     # YouTube-specific cookie handling

@@ -39,15 +39,7 @@ except (ImportError, ValueError):
 # ================================
 # Logging Setup
 # ================================
-logging.basicConfig(
-    level=logging.DEBUG,
-    format="%(asctime)s [%(levelname)s] %(message)s",
-    handlers=[
-        logging.FileHandler(LOG_PATH, encoding="utf-8"),
-        logging.StreamHandler()
-    ]
-)
-logger = logging.getLogger(__name__)
+logger = logging.getLogger("cerberus")
 
 def check_file_exists(save_path, overwrite_existing):
     """
@@ -73,7 +65,7 @@ def check_file_exists(save_path, overwrite_existing):
     return False
 
 def download_video_from_page(url, browser_path, save_folder, video_index, total_videos,
-                             minimize_browser, overwrite_existing, custom_name=None, force=False, quality=None):
+                             minimize_browser, overwrite_existing, custom_name=None, force=False, quality=None, limit_rate=None):
     """
     Attempts to download a video from a webpage.
     """
@@ -116,7 +108,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
 
     # If force or known host, use yt_dlp directly
     if force or any(host in url for host in known_hosts):
-        return ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality)
+        return ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality, limit_rate=limit_rate)
 
     for attempt in range(3):
         if attempt < 2:
@@ -144,11 +136,11 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                 continue
                             current_save_path = candidate
                             # Download via direct stream or yt_dlp fallback - prefer direct download
-                            ok = ytdlp.download_media_url(video_url_found, current_save_path, settings, original_page_url=url)
+                            ok = ytdlp.download_media_url(video_url_found, current_save_path, settings, original_page_url=url, limit_rate=limit_rate)
                             
                             if not ok:
                                 # fallback to yt_dlp single-download
-                                current_save_path = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=base, quality=quality, session_key=url, overwrite_existing=overwrite_existing)
+                                current_save_path = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=base, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate)
                             if current_save_path:
                                 downloaded_any = True
                                 final_path = current_save_path
@@ -159,10 +151,10 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                 print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, video_name + '.mp4')}", settings)
                                 continue
                             # prefer direct download
-                            ok = ytdlp.download_media_url(video_url_found, resolved, settings, original_page_url=url)
+                            ok = ytdlp.download_media_url(video_url_found, resolved, settings, original_page_url=url, limit_rate=limit_rate)
                             if not ok:
                                 # fallback: yt_dlp (will use session_key=url internally)
-                                final_from_ydl = ytdlp.download_with_youtube_dl(url, save_folder, custom_name=None, quality=quality, session_key=url, overwrite_existing=overwrite_existing)
+                                final_from_ydl = ytdlp.download_with_youtube_dl(url, save_folder, custom_name=None, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate)
                                 if final_from_ydl:
                                     downloaded_any = True
                                     final_path = final_from_ydl
@@ -181,7 +173,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                 print_if_not_ignored(f"Error during Selenium interception: {e}", settings)
         else:
             print_if_not_ignored("\nSelenium attempts failed - falling back to yt_dlp (attempt 3)...", settings)
-            return ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality)
+            return ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality, limit_rate=limit_rate)
 
     return None
 
