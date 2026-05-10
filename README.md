@@ -103,8 +103,7 @@ download_video_from_page(
 ```
 
 ## 🗺️ Roadmap
-- [x] **v0.2.2**: Resume Support (HTTP Range).
-- [x] **v0.2.3**: Rich TUI, Profiles, and Library Mode.
+- [x] **v0.2.3**: Rich TUI, Profiles, Library Mode, and Hooks. (Released)
 - [ ] **v0.3.0**: Queue Management GUI & Advanced Sorting.
 - [ ] **v0.4.0**: Multi-Connection Chunks & Hardware Acceleration.
 - [ ] **v1.0.0**: Stable Release & PyPI Distribution.
