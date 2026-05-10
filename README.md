@@ -10,14 +10,9 @@
 
 **Cerberus** combines the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network interception and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) to extract media even from websites that don't provide direct download links.
 
-## 🚀 Key Features
-- **Dual-Engine Extraction**: Seamlessly switches between `yt-dlp` for known hosts and a Selenium-based network logger for everything else.
-- **Rich TUI Dashboard**: Modern, parallel progress tracking with speed, ETA, and styled status updates (powered by `rich`).
-- **Library Mode**: Import Cerberus into your own Python projects as a module for programmatic downloading.
-- **Persistent Resume**: Interrupted sessions can be picked up exactly where they left off with `--resume`.
-- **Download Profiles**: Save and load custom configurations (quality, path, rate-limit) via named profiles.
-- **Automation Hooks**: Run custom post-download scripts automatically.
-- **Automatic Sorting**: Organizes downloads into subfolders based on Platform, Artist, or Genre.
+### Automation Hooks
+Cerberus allows you to run custom shell commands after a download. Use the `post_download_command` in your settings.
+> ⚠️ **Security Note**: Commands are executed using `shell=True`. Be cautious when using templates with untrusted URLs or filenames.
 
 ## 📦 Installation
 

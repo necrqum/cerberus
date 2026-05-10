@@ -1,6 +1,5 @@
-# cerberus/main.py
-
 import os
+import sys
 import signal
 import argparse
 import time
@@ -8,7 +7,8 @@ import logging
 
 from .config import (
     SETTINGS_PATH, load_settings, handle_config, get_default_download_dir, 
-    run_setup_wizard, get_session_log_path, get_settings_with_profile
+    run_setup_wizard, get_session_log_path, get_settings_with_profile,
+    add_profile, delete_profile
 )
 from .utils import (
     log_error, custom_print, print_if_not_ignored, setup_logging
@@ -47,6 +47,8 @@ def main():
     parser.add_argument('-t', '--threads', help="Number of parallel downloads", type=int, default=1)
     parser.add_argument('-b', '--limit-rate', help="Maximum download speed (e.g. 500K, 1M)", type=str)
     parser.add_argument('-P', '--profile', help="Use a named download profile", type=str)
+    parser.add_argument('--add-profile', help="Add/Update a profile (format: name:key=val,key2=val2)", type=str)
+    parser.add_argument('--del-profile', help="Delete a profile", type=str)
     parser.add_argument('--resume', action='store_true', help="Resume the last interrupted download queue")
     
     parser.add_argument('--setup', action='store_true', help="Run the interactive setup wizard")
@@ -56,6 +58,11 @@ def main():
     group.add_argument('--example-config', action='store_true', help="Generate an example configuration file")
     
     args = parser.parse_args()
+
+    # Show help if no arguments are provided
+    if len(sys.argv) == 1:
+        parser.print_help()
+        return
 
     if args.setup or not os.path.exists(SETTINGS_PATH):
         run_setup_wizard()
@@ -67,6 +74,14 @@ def main():
     
     if args.config or args.list_config or args.example_config:
         handle_config(args, custom_print_func=lambda msg: custom_print(msg, hidden=hidden_output))
+        return
+
+    if args.add_profile:
+        add_profile(args.add_profile)
+        return
+
+    if args.del_profile:
+        delete_profile(args.del_profile)
         return
 
     browser_path = settings.get('browser_path')
@@ -104,13 +119,21 @@ def main():
 
     if not url_list:
         print_info("No URLs provided for download.")
+        parser.print_help()
         return
 
     if not browser_path or not os.path.exists(browser_path):
         print_error("Invalid browser path in settings.")
         return
 
-    download_videos_from_list(
-        url_list, browser_path, save_folder, minimize_browser, overwrite_existing,
-        force=args.force, quality=quality, limit_rate=limit_rate
-    )
+    from .adapters.ytdlp import stop_progress_bar
+    try:
+        download_videos_from_list(
+            url_list, browser_path, save_folder, minimize_browser, overwrite_existing,
+            force=args.force, quality=quality, limit_rate=limit_rate, threads=args.threads
+        )
+    finally:
+        stop_progress_bar()
+
+if __name__ == "__main__":
+    main()

@@ -108,6 +108,34 @@ def save_profiles(profiles):
     except Exception as e:
         logging.error(f"Error saving profiles: {e}")
 
+def add_profile(profile_str):
+    """
+    Adds or updates a profile. Format: 'name:key=val,key2=val2'
+    """
+    try:
+        name, settings_str = profile_str.split(':', 1)
+        new_settings = {}
+        for item in settings_str.split(','):
+            if '=' in item:
+                k, v = item.split('=', 1)
+                new_settings[k.strip()] = v.strip()
+        
+        profiles = load_profiles()
+        profiles[name.strip()] = new_settings
+        save_profiles(profiles)
+        print(f"Profile '{name.strip()}' added/updated.")
+    except Exception as e:
+        print(f"Error adding profile: {e}. Use format 'name:key=val,key2=val2'")
+
+def delete_profile(profile_name):
+    profiles = load_profiles()
+    if profile_name in profiles:
+        del profiles[profile_name]
+        save_profiles(profiles)
+        print(f"Profile '{profile_name}' deleted.")
+    else:
+        print(f"Profile '{profile_name}' not found.")
+
 def get_settings_with_profile(profile_name=None):
     settings = load_settings()
     if profile_name:
@@ -174,7 +202,29 @@ def handle_config(args, custom_print_func=print):
     elif args.example_config:
         example_path = os.path.join(CONFIG_DIR, "example_settings.txt")
         with open(example_path, 'w') as f:
-            f.write("browser_path=/path/to/browser\nminimized=false\ndefault_quality=best\npost_download_command=echo {filename} downloaded\n")
+            f.write("# Cerberus Example Configuration\n\n")
+            f.write("# Full path to your browser executable (Chrome, Brave, Edge, etc.)\n")
+            f.write("browser_path=/path/to/browser\n\n")
+            f.write("# Minimize browser during Selenium interception\n")
+            f.write("minimized=false\n\n")
+            f.write("# Default download quality (best, worst, 720p, etc.)\n")
+            f.write("default_quality=best\n\n")
+            f.write("# Overwrite existing files (true/false)\n")
+            f.write("overwrite_existing=false\n\n")
+            f.write("# Sort downloads into subfolders (platform, artist, genre, or none)\n")
+            f.write("sort_by=none\n\n")
+            f.write("# Use current working directory as default download folder\n")
+            f.write("use_cwd_as_default=false\n\n")
+            f.write("# Custom download directory (use DEFAULT for ~/.Cerberus/Downloads)\n")
+            f.write("default_download_dir=DEFAULT\n\n")
+            f.write("# Command to run after each download ({file_path}, {filename}, {url} available)\n")
+            f.write("post_download_command=echo {filename} downloaded\n\n")
+            f.write("# Bandwidth limit (e.g., 500K, 1M, 5M)\n")
+            f.write("default_limit_rate=none\n\n")
+            f.write("# Use browser cookies for authentication (true/false)\n")
+            f.write("use_browser_cookies=false\n\n")
+            f.write("# Proxy settings (e.g., socks5://127.0.0.1:9050)\n")
+            f.write("proxy=\n")
         custom_print_func(f"Example config created at {example_path}")
     else:
         open_file(SETTINGS_PATH)

@@ -62,17 +62,29 @@ def intercept_media_url(url, browser_path, minimize_browser, cookies=None, wait_
 
         video_name = extract_video_name(driver)
         
+        # Method 1: Performance logs (Intercepted URLs)
         logs = driver.get_log('performance')
         for log in logs:
             log_message = json.loads(log['message'])
             message = log_message.get('message', {})
-            if message.get('method') == 'Network.responseReceived':
-                response = message.get('params', {}).get('response', {})
-                mime = response.get('mimeType', '')
-                r_url = response.get('url', '')
-                if 'video' in mime or any(ext in r_url for ext in ('.mp4', '.m3u8', '.wav')):
-                    if r_url and r_url not in video_links:
-                        video_links.append(r_url)
+            method = message.get('method')
+            
+            # Check both responseReceived and requestWillBeSent
+            if method in ('Network.responseReceived', 'Network.requestWillBeSent'):
+                params = message.get('params', {})
+                r_url = params.get('response', {}).get('url') if method == 'Network.responseReceived' else params.get('request', {}).get('url')
+                mime = params.get('response', {}).get('mimeType', '') if method == 'Network.responseReceived' else ''
+                
+                if r_url and r_url not in video_links:
+                    if 'video' in mime or any(ext in r_url.lower() for ext in ('.mp4', '.m3u8', '.wav')):
+                        # Filter out some noise
+                        if not any(x in r_url for x in ('google-analytics', 'doubleclick', 'facebook.com')):
+                            video_links.append(r_url)
+
+        # Method 2: DOM Search (<video> tags)
+        main_url = extract_main_video_url(driver)
+        if main_url and main_url not in video_links:
+            video_links.insert(0, main_url) # Prioritize direct DOM hits
                         
     except (NoSuchWindowException, WebDriverException) as e:
         log_error(f"WebDriver error: {e}")

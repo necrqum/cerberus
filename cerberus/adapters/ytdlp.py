@@ -12,6 +12,7 @@ from bs4 import BeautifulSoup
 # Global progress bar instance for library-wide access
 rich_progress = None
 rich_tasks = {}
+rich_lock = threading.Lock()
 
 try:
     from ..config import SETTINGS_PATH, load_settings, get_default_download_dir
@@ -36,6 +37,16 @@ def get_progress_bar():
         rich_progress = create_progress_bar()
         rich_progress.start()
     return rich_progress
+
+def stop_progress_bar():
+    global rich_progress
+    if rich_progress is not None:
+        try:
+            rich_progress.stop()
+        except Exception:
+            pass
+        rich_progress = None
+        rich_tasks.clear()
 
 def get_yt_dlp_browser(browser_path):
     """Maps browser path to yt-dlp browser name."""
@@ -73,24 +84,29 @@ def ytdlp_progress_hook(d):
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             downloaded = d.get('downloaded_bytes') or 0
             
-            if filename not in rich_tasks:
-                rich_tasks[filename] = progress.add_task(
-                    f"[cyan]Downloading {filename[:30]}...", 
-                    total=total
-                )
+            with rich_lock:
+                if filename not in rich_tasks:
+                    rich_tasks[filename] = progress.add_task(
+                        f"[cyan]Downloading {filename[:30]}...", 
+                        total=total
+                    )
+                task_id = rich_tasks[filename]
             
-            progress.update(rich_tasks[filename], completed=downloaded, total=total)
+            progress.update(task_id, completed=downloaded, total=total)
             
         elif status == 'finished':
-            if filename in rich_tasks:
-                progress.update(rich_tasks[filename], completed=d.get('total_bytes', 0))
-                # Optionally remove task after completion
-                # progress.remove_task(rich_tasks[filename])
-                # del rich_tasks[filename]
+            with rich_lock:
+                if filename in rich_tasks:
+                    task_id = rich_tasks[filename]
+                    progress.update(task_id, completed=d.get('total_bytes', 0))
+                    # Optionally remove task after completion
+                    # progress.remove_task(task_id)
+                    # del rich_tasks[filename]
             
         elif status == 'error':
-            if filename in rich_tasks:
-                progress.stop_task(rich_tasks[filename])
+            with rich_lock:
+                if filename in rich_tasks:
+                    progress.stop_task(rich_tasks[filename])
     except Exception as e:
         log_error(f"Error in Rich progress hook: {e}")
 

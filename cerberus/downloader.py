@@ -7,6 +7,7 @@ import logging
 import time
 import subprocess
 import json
+from concurrent.futures import ThreadPoolExecutor
 
 # Modular Imports
 try:
@@ -136,14 +137,23 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                     raw_name, unique_video_links = selenium.intercept_media_url(url, browser_path, minimize_browser, cookies=ng_cookies, wait_time=wait_time)
                     
                     if unique_video_links:
+                        # Improved deduplication: Normalize URLs and filter duplicates
+                        seen_clean = set()
+                        final_links = []
+                        for l in unique_video_links:
+                            clean_l = l.split('?')[0] if '?' in l else l
+                            if clean_l not in seen_clean:
+                                seen_clean.add(clean_l)
+                                final_links.append(l)
+                        
                         video_name = sanitize_filename(raw_name)
                         downloaded_any = False
 
-                        for idx, video_url_found in enumerate(unique_video_links):
+                        for idx, video_url_found in enumerate(final_links):
                             if custom_name:
                                 base_raw = custom_name[:-4] if custom_name.lower().endswith(".mp4") else custom_name
                                 base = sanitize_filename(base_raw)
-                                if len(unique_video_links) > 1:
+                                if len(final_links) > 1:
                                     candidate = os.path.join(save_folder, f"{base}({idx+1}).mp4")
                                 else:
                                     candidate = os.path.join(save_folder, f"{base}.mp4")
@@ -162,7 +172,8 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                     continue
                                 ok = ytdlp.download_media_url(video_url_found, resolved, settings, original_page_url=url, limit_rate=limit_rate)
                                 if not ok:
-                                    final_from_ydl = ytdlp.download_with_youtube_dl(url, save_folder, custom_name=None, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate, settings_dict=settings_dict)
+                                    # Use the found video URL for yt_dlp instead of the page URL to avoid duplicates if possible
+                                    final_from_ydl = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=None, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate, settings_dict=settings_dict)
                                     if final_from_ydl:
                                         downloaded_any = True
                                         final_path = final_from_ydl
@@ -185,7 +196,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
     
     return final_path
 
-def download_videos_from_list(urls, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None):
+def download_videos_from_list(urls, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None, threads=1):
     """Downloads multiple videos from a list of URLs."""
     settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
     
@@ -196,16 +207,15 @@ def download_videos_from_list(urls, browser_path, save_folder, minimize_browser,
         queue["urls"] = [u for u in urls if u not in queue["completed"]]
         save_queue(queue)
 
-    total_videos = len(urls)
-    for index, url in enumerate(urls):
+    urls_to_download = [u for u in urls if not queue or u not in queue["completed"]]
+    total_videos = len(urls_to_download)
+
+    def download_task(url_info):
+        index, url = url_info
         if stop_download.is_set():
-            print_info("Abort signal received. Terminating further downloads.")
-            break
+            return None
 
-        if queue and url in queue["completed"]:
-            continue
-
-        print_header(f"Video {index + 1}/{total_videos}")
+        print_header(f"Starting {index + 1}/{total_videos}")
         print_info(f"URL: {url}")
         
         start_time = time.time()
@@ -218,12 +228,25 @@ def download_videos_from_list(urls, browser_path, save_folder, minimize_browser,
         if final_path:
             print_success(f"Completed in {elapsed_time:.2f}s: {os.path.basename(final_path)}")
             if queue:
-                queue["completed"].append(url)
-                save_queue(queue)
+                with session_lock: # Ensure thread-safe queue updates
+                    if url not in queue["completed"]:
+                        queue["completed"].append(url)
+                        save_queue(queue)
         else:
-            print_error(f"Failed in {elapsed_time:.2f}s.")
+            print_error(f"Failed in {elapsed_time:.2f}s: {url}")
+        return final_path
 
-    if queue and not stop_download.is_set():
+    if threads > 1:
+        print_info(f"Downloading with {threads} parallel threads...")
+        with ThreadPoolExecutor(max_workers=threads) as executor:
+            list(executor.map(download_task, enumerate(urls_to_download)))
+    else:
+        for item in enumerate(urls_to_download):
+            if stop_download.is_set():
+                break
+            download_task(item)
+
+    if queue and not stop_download.is_set() and not urls_to_download:
         # Clear queue on successful completion
         if os.path.exists(QUEUE_PATH):
             os.remove(QUEUE_PATH)
