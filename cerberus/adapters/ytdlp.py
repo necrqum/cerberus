@@ -33,9 +33,10 @@ except (ImportError, ValueError):
 
 def get_progress_bar():
     global rich_progress
-    if rich_progress is None:
-        rich_progress = create_progress_bar()
-        rich_progress.start()
+    with rich_lock:
+        if rich_progress is None:
+            rich_progress = create_progress_bar()
+            rich_progress.start()
     return rich_progress
 
 def stop_progress_bar():
@@ -88,12 +89,12 @@ def ytdlp_progress_hook(d):
                 if filename not in rich_tasks:
                     rich_tasks[filename] = progress.add_task(
                         f"[cyan]Downloading {filename[:30]}...", 
-                        total=total
+                        total=total,
+                        threads=d.get('n_threads', '')
                     )
                 task_id = rich_tasks[filename]
-            
-            progress.update(task_id, completed=downloaded, total=total)
-            
+
+                progress.update(task_id, completed=downloaded, total=total)
         elif status == 'finished':
             with rich_lock:
                 if filename in rich_tasks:
@@ -204,13 +205,15 @@ def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_inst
 
     return None, {}
 
-def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3, limit_rate=None):
+def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3, limit_rate=None, progress_hooks=None):
     """
     Robust download + unified progress reporting with bandwidth limiting.
     """
     if not media_url:
         return False
 
+    hooks = progress_hooks or [ytdlp_progress_hook]
+    
     ua = settings.get('user_agent', 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)')
     referer = original_page_url or settings.get('last_page_referer') or ''
     headers = {'User-Agent': ua}
@@ -291,7 +294,8 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                                 'total_bytes': total_size,
                             }
                             try:
-                                ytdlp_progress_hook(progress_dict)
+                                for h in hooks:
+                                    h(progress_dict)
                             except Exception:
                                 pass
                     
@@ -320,7 +324,8 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                     # Verify file and call finished hook
                     if os.path.exists(target_path) and os.path.getsize(target_path) > 0:
                         try:
-                            ytdlp_progress_hook({'status': 'finished', 'filename': os.path.basename(target_path)})
+                            for h in hooks:
+                                h({'status': 'finished', 'filename': os.path.basename(target_path)})
                         except Exception:
                             pass
                         return True
@@ -344,7 +349,8 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
     # ffmpeg fallback
     try:
         try:
-            ytdlp_progress_hook({'status': 'downloading', 'filename': os.path.basename(target_path), 'downloaded_bytes': 0, 'total_bytes': 0, 'speed': 0, 'eta': None})
+            for h in hooks:
+                h({'status': 'downloading', 'filename': os.path.basename(target_path), 'downloaded_bytes': 0, 'total_bytes': 0, 'speed': 0, 'eta': None})
         except Exception:
             pass
 
@@ -363,7 +369,8 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
         proc = subprocess.run(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=900)
         if proc.returncode == 0 and os.path.exists(target_path) and os.path.getsize(target_path) > 0:
             try:
-                ytdlp_progress_hook({'status': 'finished', 'filename': os.path.basename(target_path)})
+                for h in hooks:
+                    h({'status': 'finished', 'filename': os.path.basename(target_path)})
             except Exception:
                 pass
             print(f"ffmpeg finished: {os.path.basename(target_path)}")
@@ -439,7 +446,7 @@ def sort_downloaded_file(file_path, original_url, settings):
         log_error(f"Error moving file to sorted folder: {e}")
         return file_path
 
-def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None, settings_dict=None):
+def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None, settings_dict=None, progress_hooks=None):
     """
     Public entry point for yt_dlp download. Supports settings_dict for library use.
     """
@@ -460,6 +467,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
         'socket_timeout': int(settings.get('socket_timeout', 60)),
         'retries': int(settings.get('retries', 10)),
         'ratelimit': parse_rate_limit(limit_rate),
+        'progress_hooks': progress_hooks or [ytdlp_progress_hook],
     }
     
     if 'youtube.com' in video_url or 'youtu.be' in video_url:

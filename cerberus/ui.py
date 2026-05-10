@@ -33,6 +33,7 @@ def create_progress_bar():
         DownloadColumn(),
         TransferSpeedColumn(),
         TimeRemainingColumn(),
+        TextColumn(" [bold blue]{task.fields.get('threads', '')}[/bold blue]"),
         console=console,
         transient=True
     )

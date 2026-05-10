@@ -24,13 +24,13 @@ def get_config_dir():
 
 CONFIG_DIR = get_config_dir()
 SETTINGS_PATH = os.path.join(CONFIG_DIR, "Settings.txt")
-PROFILES_PATH = os.path.join(CONFIG_DIR, "profiles.json")
+PROFILES_DIR = os.path.join(CONFIG_DIR, "Profiles")
 LOG_PATH = os.path.join(CONFIG_DIR, "Cerberus.log")
 LOGS_DIR = os.path.join(CONFIG_DIR, "Logs")
 DEFAULT_DOWNLOAD_DIR = os.path.join(CONFIG_DIR, "Downloads")
 
 # Ensure necessary folders exist
-for folder in [CONFIG_DIR, DEFAULT_DOWNLOAD_DIR, LOGS_DIR]:
+for folder in [CONFIG_DIR, DEFAULT_DOWNLOAD_DIR, LOGS_DIR, PROFILES_DIR]:
     if not os.path.exists(folder):
         os.makedirs(folder)
 
@@ -93,45 +93,45 @@ def load_settings(file_path=SETTINGS_PATH):
     return settings
 
 def load_profiles():
-    if os.path.exists(PROFILES_PATH):
-        try:
-            with open(PROFILES_PATH, 'r') as f:
-                return json.load(f)
-        except Exception as e:
-            logging.error(f"Error loading profiles: {e}")
-    return {}
-
-def save_profiles(profiles):
-    try:
-        with open(PROFILES_PATH, 'w') as f:
-            json.dump(profiles, f, indent=4)
-    except Exception as e:
-        logging.error(f"Error saving profiles: {e}")
+    """
+    Loads all profiles from the Profiles/ directory.
+    Returns a dictionary of profile names and their settings.
+    """
+    profiles = {}
+    if os.path.exists(PROFILES_DIR):
+        for filename in os.listdir(PROFILES_DIR):
+            if filename.endswith(".txt"):
+                profile_name = filename[:-4]
+                profiles[profile_name] = load_settings(os.path.join(PROFILES_DIR, filename))
+    return profiles
 
 def add_profile(profile_str):
     """
     Adds or updates a profile. Format: 'name:key=val,key2=val2'
+    Saves it as a .txt file for manual editing.
     """
     try:
         name, settings_str = profile_str.split(':', 1)
+        name = name.strip()
+        profile_path = os.path.join(PROFILES_DIR, f"{name}.txt")
+        
         new_settings = {}
+        # Load existing if available to update instead of overwrite completely? 
+        # User wants direct edit, so let's just write what they provided.
         for item in settings_str.split(','):
             if '=' in item:
                 k, v = item.split('=', 1)
                 new_settings[k.strip()] = v.strip()
         
-        profiles = load_profiles()
-        profiles[name.strip()] = new_settings
-        save_profiles(profiles)
-        print(f"Profile '{name.strip()}' added/updated.")
+        save_settings(new_settings, profile_path)
+        print(f"Profile '{name}' added/updated at {profile_path}")
     except Exception as e:
         print(f"Error adding profile: {e}. Use format 'name:key=val,key2=val2'")
 
 def delete_profile(profile_name):
-    profiles = load_profiles()
-    if profile_name in profiles:
-        del profiles[profile_name]
-        save_profiles(profiles)
+    profile_path = os.path.join(PROFILES_DIR, f"{profile_name.strip()}.txt")
+    if os.path.exists(profile_path):
+        os.remove(profile_path)
         print(f"Profile '{profile_name}' deleted.")
     else:
         print(f"Profile '{profile_name}' not found.")
@@ -224,7 +224,9 @@ def handle_config(args, custom_print_func=print):
             f.write("# Use browser cookies for authentication (true/false)\n")
             f.write("use_browser_cookies=false\n\n")
             f.write("# Proxy settings (e.g., socks5://127.0.0.1:9050)\n")
-            f.write("proxy=\n")
+            f.write("proxy=\n\n")
+            f.write("# NOTE: You can create custom profiles in the 'Profiles/' folder.\n")
+            f.write("# Simply create a 'my_profile.txt' file with the same format as this one.\n")
         custom_print_func(f"Example config created at {example_path}")
     else:
         open_file(SETTINGS_PATH)
