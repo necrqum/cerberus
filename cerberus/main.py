@@ -130,7 +130,8 @@ def main():
     try:
         download_videos_from_list(
             url_list, browser_path, save_folder, minimize_browser, overwrite_existing,
-            force=args.force, quality=quality, limit_rate=limit_rate, threads=args.threads
+            force=args.force, quality=quality, limit_rate=limit_rate, threads=args.threads,
+            custom_name=args.name
         )
     finally:
         stop_progress_bar()

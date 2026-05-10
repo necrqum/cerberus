@@ -83,7 +83,7 @@ def run_post_processing_hook(final_path, url, settings):
 
 def download_video_from_page(url, browser_path, save_folder, video_index, total_videos,
                              minimize_browser, overwrite_existing, custom_name=None, 
-                             force=False, quality=None, limit_rate=None, settings_dict=None):
+                             force=False, quality=None, limit_rate=None, settings_dict=None, threads=1):
     """
     Attempts to download a video from a webpage. Supports settings_dict for library use.
     """
@@ -137,12 +137,13 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                     raw_name, unique_video_links = selenium.intercept_media_url(url, browser_path, minimize_browser, cookies=ng_cookies, wait_time=wait_time)
                     
                     if unique_video_links:
-                        # Improved deduplication: Filter out identical URLs
+                        # Aggressive deduplication: strip query params for comparison but keep them for downloading
                         final_links = []
-                        seen_links = set()
+                        seen_clean = set()
                         for l in unique_video_links:
-                            if l not in seen_links:
-                                seen_links.add(l)
+                            clean_l = l.split('?')[0].split('#')[0] if '?' in l or '#' in l else l
+                            if clean_l not in seen_clean:
+                                seen_clean.add(clean_l)
                                 final_links.append(l)
                         
                         video_name = sanitize_filename(raw_name)
@@ -152,6 +153,11 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                             # Add thread count to progress hook if in parallel mode
                             n_threads_str = f"Thread Pool: {threads}" if threads > 1 else ""
                             
+                            # We wrap the hook to inject thread info
+                            def hooked_progress(d):
+                                d['n_threads'] = n_threads_str
+                                ytdlp.ytdlp_progress_hook(d)
+
                             if custom_name:
                                 base_raw = custom_name[:-4] if custom_name.lower().endswith(".mp4") else custom_name
                                 base = sanitize_filename(base_raw)
@@ -160,13 +166,9 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                 else:
                                     candidate = os.path.join(save_folder, f"{base}.mp4")
                                 if os.path.exists(candidate) and not overwrite_existing:
+                                    print_info(f"Skipping existing file: {candidate}")
                                     continue
                                 current_save_path = candidate
-                                # We wrap the hook to inject thread info
-                                def hooked_progress(d):
-                                    d['n_threads'] = n_threads_str
-                                    ytdlp.ytdlp_progress_hook(d)
-
                                 ok = ytdlp.download_media_url(video_url_found, current_save_path, settings, original_page_url=url, limit_rate=limit_rate, progress_hooks=[hooked_progress])
                                 if not ok:
                                     current_save_path = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=base, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate, settings_dict=settings_dict, progress_hooks=[hooked_progress])
@@ -176,6 +178,11 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                             else:
                                 resolved = resolve_available_filename(save_folder, video_name, ext=".mp4", overwrite_existing=overwrite_existing, session_key=url)
                                 if resolved is None:
+                                    # This happens if it was already skipped once in this session or exists without session key
+                                    # Check if the base file exists
+                                    base_file = os.path.join(save_folder, f"{video_name}.mp4")
+                                    if os.path.exists(base_file) and not overwrite_existing:
+                                         print_info(f"Skipping existing file: {base_file}")
                                     continue
                                 
                                 # We wrap the hook to inject thread info
@@ -208,7 +215,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
     
     return final_path
 
-def download_videos_from_list(urls, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None, threads=1):
+def download_videos_from_list(urls, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None, threads=1, custom_name=None):
     """Downloads multiple videos from a list of URLs."""
     settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
     
@@ -227,14 +234,19 @@ def download_videos_from_list(urls, browser_path, save_folder, minimize_browser,
         if stop_download.is_set():
             return None
 
+        # Only pass custom_name if downloading a single top-level URL
+        # Otherwise it could cause confusion in batch lists.
+        task_custom_name = custom_name if len(urls) == 1 else None
+
         print_header(f"Starting {index + 1}/{total_videos}")
         print_info(f"URL: {url}")
         
         start_time = time.time()
         final_path = download_video_from_page(url, browser_path, save_folder, index,
                                               total_videos, minimize_browser, overwrite_existing,
+                                              custom_name=task_custom_name,
                                               force=force, quality=quality, limit_rate=limit_rate,
-                                              settings_dict=settings_dict)
+                                              settings_dict=settings_dict, threads=threads)
         elapsed_time = time.time() - start_time
         
         if final_path:
