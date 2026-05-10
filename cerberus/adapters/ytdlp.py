@@ -6,12 +6,12 @@ import threading
 import requests
 import yt_dlp
 import shutil
-from tqdm import tqdm
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
-# Thread-local storage for progress bars
-thread_local = threading.local()
+# Global progress bar instance for library-wide access
+rich_progress = None
+rich_tasks = {}
 
 try:
     from ..config import SETTINGS_PATH, load_settings, get_default_download_dir
@@ -20,16 +20,22 @@ try:
         human_readable_size, print_if_not_ignored
     )
     from ..events import stop_download
+    from ..ui import create_progress_bar
 except (ImportError, ValueError):
     from config import SETTINGS_PATH, load_settings, get_default_download_dir
     from utils import (
         log_info, log_error, sanitize_filename, resolve_available_filename,
         human_readable_size, print_if_not_ignored
     )
-    import sys
-    import os
-    sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
     from events import stop_download
+    from ui import create_progress_bar
+
+def get_progress_bar():
+    global rich_progress
+    if rich_progress is None:
+        rich_progress = create_progress_bar()
+        rich_progress.start()
+    return rich_progress
 
 def get_yt_dlp_browser(browser_path):
     """Maps browser path to yt-dlp browser name."""
@@ -56,48 +62,37 @@ def get_yt_dlp_browser(browser_path):
 
 def ytdlp_progress_hook(d):
     """
-    yt_dlp progress hook using thread-local tqdm for professional parallel output.
+    yt_dlp progress hook using Rich for professional parallel output.
     """
-    if not hasattr(thread_local, 'pbar'):
-        thread_local.pbar = None
-        
+    progress = get_progress_bar()
+    filename = os.path.basename(d.get('filename', 'video'))
+    
     try:
         status = d.get('status')
         if status == 'downloading':
             total = d.get('total_bytes') or d.get('total_bytes_estimate') or 0
             downloaded = d.get('downloaded_bytes') or 0
             
-            if thread_local.pbar is None:
-                filename = os.path.basename(d.get('filename', 'video'))
-                thread_local.pbar = tqdm(
-                    total=total,
-                    unit='B',
-                    unit_scale=True,
-                    unit_divisor=1024,
-                    desc=f"Downloading {filename[:30]}",
-                    leave=False, # cleaner for parallel
-                    position=None, # let tqdm handle nesting if possible
-                    dynamic_ncols=True
+            if filename not in rich_tasks:
+                rich_tasks[filename] = progress.add_task(
+                    f"[cyan]Downloading {filename[:30]}...", 
+                    total=total
                 )
             
-            thread_local.pbar.n = downloaded
-            thread_local.pbar.refresh()
+            progress.update(rich_tasks[filename], completed=downloaded, total=total)
             
         elif status == 'finished':
-            if thread_local.pbar:
-                thread_local.pbar.close()
-                thread_local.pbar = None
-            print(f"Finished: {os.path.basename(d.get('filename', ''))}")
+            if filename in rich_tasks:
+                progress.update(rich_tasks[filename], completed=d.get('total_bytes', 0))
+                # Optionally remove task after completion
+                # progress.remove_task(rich_tasks[filename])
+                # del rich_tasks[filename]
             
         elif status == 'error':
-            if thread_local.pbar:
-                thread_local.pbar.close()
-                thread_local.pbar = None
-            print(f"Error downloading: {os.path.basename(d.get('filename', ''))}")
-    except Exception:
-        if hasattr(thread_local, 'pbar') and thread_local.pbar:
-            thread_local.pbar.close()
-            thread_local.pbar = None
+            if filename in rich_tasks:
+                progress.stop_task(rich_tasks[filename])
+    except Exception as e:
+        log_error(f"Error in Rich progress hook: {e}")
 
 def parse_rate_limit(rate_str):
     """Parses strings like '500K', '1M' into bytes per second."""
@@ -368,12 +363,6 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
 def sort_downloaded_file(file_path, original_url, settings):
     """
     Moves downloaded file into a subfolder based on 'sort_by' setting.
-    Possible values: 'none', 'artist', 'platform', 'genre'.
-
-    - 'platform': detect site name via Open Graph 'og:site_name' or fallback to domain.
-    - 'artist'/'genre': extract from meta tags <meta name="author"> or <meta name="genre">.
-
-    Returns the new path (or original if not moved).
     """
     sort_by = settings.get('sort_by', 'none').lower()
     if sort_by == 'none':
@@ -386,7 +375,6 @@ def sort_downloaded_file(file_path, original_url, settings):
     artist_folder = None
     genre_folder = None
 
-    # Fetch and parse page once if artist/genre or OG site_name needed
     soup = None
     need_soup = sort_by in ("platform", "artist", "genre")
     if need_soup:
@@ -398,19 +386,15 @@ def sort_downloaded_file(file_path, original_url, settings):
             log_error(f"Error fetching page for sorting: {e}")
             soup = None
 
-    # 1) PLATFORM
     if sort_by == "platform":
         if soup:
             og_site = soup.find("meta", property="og:site_name")
             if og_site and og_site.get("content"):
                 platform_folder = og_site["content"].strip().lower().replace(" ", "_")
         if not platform_folder:
-            # Fallback to domain
             domain = urlparse(original_url).netloc
             platform_folder = domain.replace("www.", "").split(".")[0].lower()
         dest_dir = os.path.join(base_dir, platform_folder)
-
-    # 2) ARTIST
     elif sort_by == "artist":
         if soup:
             author_meta = soup.find("meta", attrs={"name": "author"})
@@ -419,8 +403,6 @@ def sort_downloaded_file(file_path, original_url, settings):
         if not artist_folder:
             artist_folder = "unknown_artist"
         dest_dir = os.path.join(base_dir, artist_folder)
-
-    # 3) GENRE
     elif sort_by == "genre":
         if soup:
             genre_meta = soup.find("meta", attrs={"name": "genre"})
@@ -429,12 +411,9 @@ def sort_downloaded_file(file_path, original_url, settings):
         if not genre_folder:
             genre_folder = "unknown_genre"
         dest_dir = os.path.join(base_dir, genre_folder)
-
     else:
-        # Should not reach here, but fallback to base
         dest_dir = base_dir
 
-    # Ensure destination directory exists
     try:
         os.makedirs(dest_dir, exist_ok=True)
         new_path = os.path.join(dest_dir, os.path.basename(file_path))
@@ -444,18 +423,12 @@ def sort_downloaded_file(file_path, original_url, settings):
         log_error(f"Error moving file to sorted folder: {e}")
         return file_path
 
-def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None):
+def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None, settings_dict=None):
     """
-    Robust yt_dlp handler:
-     - extracts info once
-     - deduplicates entries (stable key)
-     - determines real media URLs (prefer entry fields first)
-     - downloads each distinct media resource exactly once
-     - uses resolve_available_filename for session-local numbering (NAME, NAME(1), ...)
-     - falls back to yt_dlp.download per-entry only if direct media URL cannot be determined
-    Returns last downloaded path or None.
+    Public entry point for yt_dlp download. Supports settings_dict for library use.
     """
-    settings = load_settings(SETTINGS_PATH)
+    settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
+    
     yt_verbose = settings.get('yt_verbose', 'false').lower() == 'true'
     if quality is None:
         quality = settings.get('default_quality', 'best')
@@ -473,7 +446,6 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
         'ratelimit': parse_rate_limit(limit_rate),
     }
     
-    # YouTube-specific cookie handling
     if 'youtube.com' in video_url or 'youtu.be' in video_url:
         if settings.get('use_browser_cookies', 'false').lower() == 'true':
             browser_name = get_yt_dlp_browser(settings.get('browser_path'))
@@ -486,7 +458,6 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
     if settings.get('ignoreerrors', 'false').lower() == 'true':
         common_opts['ignoreerrors'] = True
 
-    # Try to extract info once
     try:
         with yt_dlp.YoutubeDL(common_opts) as ydl:
             info = ydl.extract_info(video_url, download=False)
@@ -494,7 +465,6 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
         log_error(f"yt_dlp extract_info error: {e}")
         info = None
 
-    # Determine base title
     base_title = None
     if custom_name:
         base_title = custom_name[:-4] if custom_name.lower().endswith(".mp4") else custom_name
@@ -504,10 +474,8 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
     if not base_title:
         base_title = "video"
 
-    # Playlist / multiple entries handling
     if info and info.get('entries'):
         raw_entries = [e for e in info.get('entries') if e]
-        # stable dedupe by key
         seen_keys = set()
         unique_entries = []
         for e in raw_entries:
@@ -522,30 +490,23 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
             seen_keys.add(key)
             unique_entries.append(e)
 
-        # Reusable ydl instance for targeted re-extraction if needed
         ydl_for_info = yt_dlp.YoutubeDL(common_opts)
-
         media_seen = set()
         final_paths = []
 
         for idx, entry in enumerate(unique_entries):
             entry_url = entry.get('webpage_url') or entry.get('url') or video_url
-
-            # Try to get media_url from entry, prefer non-extractive access
             media_url, meta = get_direct_media_url(entry, entry_url, quality=quality, ydl_instance=ydl_for_info)
 
-            # If still no media_url, mark for controlled yt_dlp fallback
             used_fallback_ydl_download = False
             if not media_url:
                 used_fallback_ydl_download = True
 
-            # Deduplicate by media_url (if available), else by entry key
             dedupe_key = media_url if media_url else (entry.get('id') or entry.get('webpage_url') or entry.get('url'))
             if dedupe_key in media_seen:
                 continue
             media_seen.add(dedupe_key)
 
-            # Resolve target path using session_key
             entry_title = (entry.get('title') or base_title).strip()
             candidate_base = sanitize_filename(entry_title)
             ext = (meta.get('ext') or 'mp4').lstrip('.')
@@ -560,15 +521,11 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
             if not used_fallback_ydl_download:
                 ok = download_media_url(media_url, target_path, settings, original_page_url=entry_url)
                 if not ok:
-                    log_error(f"Failed to download media_url for entry: {media_url}")
-                    print_if_not_ignored(f"Failed to download media_url for entry: {media_url}", settings)
-                    # try fallback to yt_dlp once for this entry
                     used_fallback_ydl_download = True
                 else:
                     saved_path = target_path
 
             if used_fallback_ydl_download:
-                # Controlled yt_dlp download for this entry
                 ydl_opts_entry = common_opts.copy()
                 ydl_opts_entry.update({
                     'outtmpl': target_path,
@@ -581,17 +538,12 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
                         ydl_single.download([entry_url])
                     saved_path = target_path
                 except Exception as e:
-                    log_error(f"Fallback yt_dlp download failed for entry {entry_url}: {e}")
-                    print_if_not_ignored(f"Fallback yt_dlp download failed for entry {entry_url}: {e}", settings)
+                    log_error(f"Fallback yt_dlp download failed: {e}")
                     continue
 
-            # Postprocess / sort
             try:
                 moved = sort_downloaded_file(saved_path, entry_url, settings)
-                if moved and moved != saved_path:
-                    final_paths.append(moved)
-                else:
-                    final_paths.append(saved_path)
+                final_paths.append(moved if moved else saved_path)
             except Exception:
                 final_paths.append(saved_path)
 
@@ -602,7 +554,6 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
 
         return final_paths[-1] if final_paths else None
 
-    # Single item fallback (not playlist)
     target_path = resolve_available_filename(save_folder, base_title, ext=".mp4", overwrite_existing=overwrite_existing, session_key=session_key or video_url)
     if target_path is None:
         print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, base_title + '.mp4')}", settings)
@@ -621,12 +572,9 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
             ydl.download([video_url])
         try:
             final_path = sort_downloaded_file(target_path, video_url, settings)
-            if final_path and final_path != target_path:
-                return final_path
-            return target_path
+            return final_path if final_path else target_path
         except Exception:
             return target_path
     except Exception as e:
         log_error(f"Error downloading video with yt_dlp: {e}")
-        print_if_not_ignored(f"Error downloading video with yt_dlp: {e}", settings)
         return None

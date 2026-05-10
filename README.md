@@ -12,10 +12,12 @@
 
 ## 🚀 Key Features
 - **Dual-Engine Extraction**: Seamlessly switches between `yt-dlp` for known hosts and a Selenium-based network logger for everything else.
-- **Interactive Setup**: Get started in seconds with a guided setup wizard.
-- **Professional Progress UI**: Clean, `tqdm`-powered progress bars with speed and ETA.
+- **Rich TUI Dashboard**: Modern, parallel progress tracking with speed, ETA, and styled status updates (powered by `rich`).
+- **Library Mode**: Import Cerberus into your own Python projects as a module for programmatic downloading.
+- **Persistent Resume**: Interrupted sessions can be picked up exactly where they left off with `--resume`.
+- **Download Profiles**: Save and load custom configurations (quality, path, rate-limit) via named profiles.
+- **Automation Hooks**: Run custom post-download scripts automatically.
 - **Automatic Sorting**: Organizes downloads into subfolders based on Platform, Artist, or Genre.
-- **FFmpeg Integration**: Robust handling of HLS streams and video conversions.
 
 ## 📦 Installation
 
@@ -82,15 +84,29 @@ Cerberus uses a centralized configuration located at `~/.Cerberus` (Linux/Mac) o
 | Argument | Description |
 | :--- | :--- |
 | `--setup` | Runs the interactive setup wizard. |
+| `--resume` | Resumes the last interrupted download queue. |
+| `-P / --profile` | Loads a specific download profile (e.g., `high-res`). |
 | `--config` | Opens the settings file in your default editor. |
 | `--list-config` | Prints all current settings to the terminal. |
 | `--example-config` | Generates a template with all available options. |
 
+## 📦 Library Mode (Experimental)
+You can now use Cerberus's engine in your own scripts:
+```python
+from cerberus.downloader import download_video_from_page
+
+download_video_from_page(
+    url="https://...",
+    save_folder="./downloads",
+    settings_dict={'browser_path': '/usr/bin/chrome', 'minimized': 'true'}
+)
+```
+
 ## 🗺️ Roadmap
-- [x] **v0.2.1**: Parallel Downloads & Automated Binaries.
 - [x] **v0.2.2**: Resume Support (HTTP Range).
-- [ ] **v0.3.0**: Bandwidth Limiting & Speed Throttling.
-- [ ] **v0.4.0**: Interactive Setup Wizard (Extended).
+- [x] **v0.2.3**: Rich TUI, Profiles, and Library Mode.
+- [ ] **v0.3.0**: Queue Management GUI & Advanced Sorting.
+- [ ] **v0.4.0**: Multi-Connection Chunks & Hardware Acceleration.
 - [ ] **v1.0.0**: Stable Release & PyPI Distribution.
 
 ## 🤝 Contributing & Issues

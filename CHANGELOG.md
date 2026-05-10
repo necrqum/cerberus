@@ -4,9 +4,23 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
-## [Unreleased]
+## [0.2.3] - 2026-05-08
 ### Added
-- Plan for Bandwidth Limiting.
+- **Library Mode (Programmatic API)**: Cerberus can now be imported as a Python module. Core functions now accept a `settings_dict` to bypass global configuration files.
+- **Rich TUI Dashboard**: Completely redesigned the CLI interface using the `rich` library. Features parallel download tracking with professional progress bars, styled headers, and status panels.
+- **Persistent Queue & Resume**: Implemented a state-persistence system (`queue.json`). Interrupted batch downloads can now be resumed using the new `--resume` flag.
+- **Download Profiles**: Added support for named configuration profiles via `-P` / `--profile`. Users can now save multiple settings (e.g., quality, path, rate-limit) in `profiles.json`.
+- **Post-processing Hooks**: Added `post_download_command` to settings. Allows executing custom shell commands automatically after each successful download (supports templates like `{file_path}`, `{filename}`, `{url}`).
+- **Enhanced Setup Wizard**: Improved detection for existing configurations and added reset/abort options.
+
+### Changed
+- **Modular Refactoring**: Decoupled core download logic from CLI-specific path handling for library readiness.
+- **UI Upgrade**: Replaced `tqdm` with `rich.progress` for a more modern and stable parallel UI.
+- **Atomic Operations**: Improved file safety using `os.replace` for final assembly.
+
+### Fixed
+- **Bandwidth Limiting Consistency**: Fixed a bug where rate limits were not correctly applied in certain batch download scenarios.
+- Improved error handling for system-level warnings on Linux terminals.
 
 ## [0.2.2] - 2026-04-02
 ### Added

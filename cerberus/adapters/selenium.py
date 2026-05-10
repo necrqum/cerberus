@@ -29,13 +29,6 @@ def intercept_media_url(url, browser_path, minimize_browser, cookies=None, wait_
     """
     Initializes a browser, loads the URL, and intercepts media URLs from performance logs.
     Returns (video_name, video_links).
-    
-    Args:
-        url: The URL to load
-        browser_path: Path to the browser executable
-        minimize_browser: Whether to run in minimized/headless mode
-        cookies: Optional cookies to set before loading the page
-        wait_time: Seconds to wait for page and video to load (default: 5)
     """
     driver = None
     video_links = []
@@ -47,8 +40,6 @@ def intercept_media_url(url, browser_path, minimize_browser, cookies=None, wait_
         options.add_argument("--incognito")
         
         # Performance logging for interception
-        capabilities = DesiredCapabilities.CHROME.copy()
-        capabilities['goog:loggingPrefs'] = {'performance': 'ALL'}
         options.set_capability('goog:loggingPrefs', {'performance': 'ALL'})
         
         if minimize_browser:
@@ -57,9 +48,8 @@ def intercept_media_url(url, browser_path, minimize_browser, cookies=None, wait_
 
         driver = webdriver.Chrome(service=ChromeService(), options=options)
         
-        # Some sites (like Newgrounds) might need cookies before loading the main URL
         if cookies:
-            driver.get("about:blank") # Need to be on some page to add cookies
+            driver.get("about:blank")
             domain = "." + url.split("/")[2].replace("www.", "")
             for c in cookies:
                 try:
@@ -68,7 +58,7 @@ def intercept_media_url(url, browser_path, minimize_browser, cookies=None, wait_
                     pass
         
         driver.get(url)
-        time.sleep(wait_time) # Wait for page and potentially video to load
+        time.sleep(wait_time)
 
         video_name = extract_video_name(driver)
         

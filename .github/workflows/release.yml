@@ -42,19 +42,21 @@ jobs:
       if: matrix.os == 'ubuntu-latest'
       run: |
         pyinstaller --onefile --name cerberus-linux cerberus/__main__.py
+        echo "Build complete for Linux"
         ls -l dist/
 
     - name: Build with PyInstaller (Windows)
       if: matrix.os == 'windows-latest'
       run: |
         pyinstaller --onefile --name cerberus cerberus/__main__.py
+        echo "Build complete for Windows"
         dir dist\
 
     - name: Upload Artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ matrix.asset_name }}
-        path: dist/${{ matrix.asset_name }}
+        name: binary-${{ matrix.os }}
+        path: dist/cerberus*
 
   release:
     name: Create GitHub Release
@@ -65,7 +67,7 @@ jobs:
       uses: actions/download-artifact@v4
       with:
         path: ./artifacts
-        pattern: '*'
+        pattern: 'binary-*'
         merge-multiple: true
 
     - name: Debug - List Files
