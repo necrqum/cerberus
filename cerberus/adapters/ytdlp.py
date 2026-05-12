@@ -94,12 +94,12 @@ def ytdlp_progress_hook(d):
                     )
                 task_id = rich_tasks[filename]
 
-                progress.update(task_id, completed=downloaded, total=total)
+                progress.update(task_id, completed=downloaded, total=total, threads=d.get('n_threads', ''))
         elif status == 'finished':
             with rich_lock:
                 if filename in rich_tasks:
                     task_id = rich_tasks[filename]
-                    progress.update(task_id, completed=d.get('total_bytes', 0))
+                    progress.update(task_id, completed=d.get('total_bytes', 0), threads=d.get('n_threads', ''))
                     # Optionally remove task after completion
                     # progress.remove_task(task_id)
                     # del rich_tasks[filename]

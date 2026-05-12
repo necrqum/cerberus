@@ -90,6 +90,8 @@ def main():
     quality = args.quality or settings.get('default_quality', 'best')
     limit_rate = args.limit_rate or settings.get('default_limit_rate')
 
+    print(f"DEBUG: main.py args.name = {args.name}")
+
     if args.path:
         save_folder = args.path
     else:
