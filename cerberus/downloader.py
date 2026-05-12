@@ -282,14 +282,14 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
     if threads > 1:
         print_info(f"Downloading with {threads} parallel threads...")
         with ThreadPoolExecutor(max_workers=threads) as executor:
-            list(executor.map(download_task, enumerate(urls_to_download)))
+            list(executor.map(download_task, enumerate(url_items)))
     else:
-        for item in enumerate(urls_to_download):
+        for item in enumerate(url_items):
             if stop_download.is_set():
                 break
             download_task(item)
 
-    if queue and not stop_download.is_set() and not urls_to_download:
+    if queue and not stop_download.is_set() and not url_items:
         # Clear queue on successful completion
         if os.path.exists(QUEUE_PATH):
             os.remove(QUEUE_PATH)
