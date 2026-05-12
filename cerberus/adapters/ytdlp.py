@@ -21,7 +21,7 @@ try:
         human_readable_size, print_if_not_ignored
     )
     from ..events import stop_download
-    from ..ui import create_progress_bar
+    from ..ui import create_progress_bar, ask_for_name
 except (ImportError, ValueError):
     from config import SETTINGS_PATH, load_settings, get_default_download_dir
     from utils import (
@@ -29,7 +29,7 @@ except (ImportError, ValueError):
         human_readable_size, print_if_not_ignored
     )
     from events import stop_download
-    from ui import create_progress_bar
+    from ui import create_progress_bar, ask_for_name
 
 def get_progress_bar():
     global rich_progress
@@ -533,7 +533,14 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
 
             # If custom_name was provided, we use base_title (which is derived from custom_name)
             # If it's a playlist/album, we append an index to avoid all videos having same name.
-            if custom_name:
+            if custom_name == "__INTERACTIVE__":
+                entry_title_orig = entry.get('title') or base_title
+                entry_custom = ask_for_name(entry_title_orig)
+                if entry_custom:
+                    entry_title = entry_custom
+                else:
+                    entry_title = entry_title_orig
+            elif custom_name:
                 if len(unique_entries) > 1:
                     entry_title = f"{base_title}({idx+1})"
                 else:
@@ -587,9 +594,16 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
 
         return final_paths[-1] if final_paths else None
 
-    target_path = resolve_available_filename(save_folder, base_title, ext=".mp4", overwrite_existing=overwrite_existing, session_key=session_key or video_url)
+    # Single video path
+    final_entry_title = base_title
+    if custom_name == "__INTERACTIVE__":
+        res = ask_for_name(base_title)
+        if res:
+            final_entry_title = res
+
+    target_path = resolve_available_filename(save_folder, final_entry_title, ext=".mp4", overwrite_existing=overwrite_existing, session_key=session_key or video_url)
     if target_path is None:
-        print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, base_title + '.mp4')}", settings)
+        print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, final_entry_title + '.mp4')}", settings)
         return None
 
     ydl_opts = common_opts.copy()

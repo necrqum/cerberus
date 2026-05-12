@@ -40,7 +40,7 @@ def main():
     parser.add_argument('-u', '--urls', help="Comma-separated list of URLs to download", type=str)
     parser.add_argument('-r', '--list', help="Path to a file containing video URLs", type=str)
     parser.add_argument('-p', '--path', help="Path to save downloaded videos", type=str)
-    parser.add_argument('-n', '--name', help="Optional name for the downloaded video", type=str)
+    parser.add_argument('-n', '--name', help="Optional name (omit value for interactive mode)", type=str, nargs='?', const='__INTERACTIVE__')
     parser.add_argument('-H', '--hidden', help="Hide all console output", action='store_true')
     parser.add_argument('-f', '--force', help="Force the use of yt_dlp for downloading", action='store_true')
     parser.add_argument('-q', '--quality', help="Download quality (e.g. best, worst, 720p)", type=str)
@@ -98,26 +98,36 @@ def main():
     if not os.path.exists(save_folder):
         os.makedirs(save_folder)
 
-    url_list = []
+    url_items = []
     if args.resume:
         queue = load_queue()
-        url_list = queue.get("urls", [])
-        if not url_list:
+        res_urls = queue.get("urls", [])
+        if not res_urls:
             print_info("No interrupted queue found to resume.")
             return
+        url_items = [{"url": u, "name": None} for u in res_urls]
     else:
+        raw_list = []
         if args.link:
-            url_list.append(args.link.strip())
+            raw_list.append(args.link.strip())
         if args.urls:
-            url_list += [u.strip() for u in args.urls.split(',') if u.strip()]
+            raw_list += [u.strip() for u in args.urls.split(',') if u.strip()]
         if args.list:
             try:
                 with open(args.list, 'r') as f:
-                    url_list += [line.strip() for line in f if line.strip()]
+                    raw_list += [line.strip() for line in f if line.strip()]
             except Exception as e:
                 print_error(f"Error reading list file: {e}")
 
-    if not url_list:
+        # Parse 'URL:::Name' format
+        for item in raw_list:
+            if ":::" in item:
+                u, n = item.split(":::", 1)
+                url_items.append({"url": u.strip(), "name": n.strip()})
+            else:
+                url_items.append({"url": item, "name": None})
+
+    if not url_items:
         print_info("No URLs provided for download.")
         parser.print_help()
         return
@@ -129,7 +139,7 @@ def main():
     from .adapters.ytdlp import stop_progress_bar
     try:
         download_videos_from_list(
-            url_list, browser_path, save_folder, minimize_browser, overwrite_existing,
+            url_items, browser_path, save_folder, minimize_browser, overwrite_existing,
             force=args.force, quality=quality, limit_rate=limit_rate, threads=args.threads,
             custom_name=args.name
         )

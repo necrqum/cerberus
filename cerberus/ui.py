@@ -12,8 +12,10 @@ from rich.progress import (
 )
 from rich.logging import RichHandler
 import logging
+import threading
 
 console = Console()
+interaction_lock = threading.Lock()
 
 def setup_rich_logging(level=logging.INFO):
     """Sets up logging using RichHandler for beautiful console output."""
@@ -37,6 +39,28 @@ def create_progress_bar():
         console=console,
         transient=True
     )
+
+def ask_for_name(original_title):
+    """
+    Interactively asks the user for a custom filename.
+    Thread-safe and manages progress bar state.
+    """
+    from .adapters.ytdlp import stop_progress_bar, get_progress_bar
+    
+    with interaction_lock:
+        # Hide progress bar if active
+        stop_progress_bar()
+        
+        console.print(f"\n[bold yellow]Interactive Naming[/bold yellow]")
+        console.print(f"Original Title: [cyan]{original_title}[/cyan]")
+        
+        try:
+            custom = input("Enter custom name (Leave blank to keep original): ").strip()
+        except EOFError:
+            custom = ""
+            
+        # Resume progress bar (it will be recreated on next update)
+        return custom if custom else None
 
 def print_header(text):
     """Prints a styled header."""

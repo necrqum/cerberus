@@ -24,7 +24,7 @@ try:
     from .events import stop_download
     from .adapters import ytdlp
     from .adapters import selenium
-    from .ui import print_info, print_success, print_error, print_header
+    from .ui import print_info, print_success, print_error, print_header, ask_for_name
 except (ImportError, ValueError):
     from config import (
         CONFIG_DIR, SETTINGS_PATH, LOG_PATH, DEFAULT_DOWNLOAD_DIR,
@@ -39,7 +39,7 @@ except (ImportError, ValueError):
     from events import stop_download
     import adapters.ytdlp as ytdlp
     import adapters.selenium as selenium
-    from ui import print_info, print_success, print_error, print_header
+    from ui import print_info, print_success, print_error, print_header, ask_for_name
 
 # ================================
 # Logging Setup
@@ -158,10 +158,21 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                 d['n_threads'] = n_threads_str
                                 ytdlp.ytdlp_progress_hook(d)
 
-                            if custom_name:
-                                base_raw = custom_name[:-4] if custom_name.lower().endswith(".mp4") else custom_name
-                                base = sanitize_filename(base_raw)
+                            # Interactive Naming Prompt
+                            entry_custom_name = custom_name
+                            if entry_custom_name == "__INTERACTIVE__":
+                                # Use video_name (scraped from page) as reference
+                                prompt_title = video_name
                                 if len(final_links) > 1:
+                                    prompt_title += f" [Part {idx+1}]"
+                                entry_custom_name = ask_for_name(prompt_title)
+
+                            if entry_custom_name:
+                                base_raw = entry_custom_name[:-4] if entry_custom_name.lower().endswith(".mp4") else entry_custom_name
+                                base = sanitize_filename(base_raw)
+                                if len(final_links) > 1 and entry_custom_name == custom_name:
+                                    # Only index if it was a global bulk name. 
+                                    # If user typed it interactively, they might have included the index.
                                     candidate = os.path.join(save_folder, f"{base}({idx+1}).mp4")
                                 else:
                                     candidate = os.path.join(save_folder, f"{base}.mp4")
@@ -215,39 +226,44 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
     
     return final_path
 
-def download_videos_from_list(urls, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None, threads=1, custom_name=None):
-    """Downloads multiple videos from a list of URLs."""
+def download_videos_from_list(url_items, browser_path, save_folder, minimize_browser, overwrite_existing, force=False, quality=None, limit_rate=None, settings_dict=None, threads=1, custom_name=None):
+    """Downloads multiple videos from a list of URL items (dict with 'url' and optional 'name')."""
     settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
     
     # Manage queue if not in library mode
     queue = None
     if settings_dict is None:
         queue = load_queue()
-        queue["urls"] = [u for u in urls if u not in queue["completed"]]
+        # Filter out already completed
+        url_items = [item for item in url_items if item["url"] not in queue["completed"]]
+        queue["urls"] = [item["url"] for item in url_items]
         save_queue(queue)
 
-    urls_to_download = [u for u in urls if not queue or u not in queue["completed"]]
-    total_videos = len(urls_to_download)
+    total_videos = len(url_items)
 
-    def download_task(url_info):
-        index, url = url_info
+    def download_task(item_info):
+        index, item = item_info
+        url = item["url"]
+        item_name = item.get("name") # Name from list (URL:::Name)
+        
         if stop_download.is_set():
             return None
 
-        # Pass custom_name if it's a single URL or if it's specifically provided.
-        # We allow it for multiple URLs now as the index appending handles collisions.
-        task_custom_name = custom_name
+        # Priority: 1. Name from list | 2. Global -n argument | 3. Original
+        final_custom_name = item_name or custom_name
 
         print_header(f"Starting {index + 1}/{total_videos}")
-        if task_custom_name:
-            print_info(f"URL: {url} (Custom Name: {task_custom_name})")
+        if final_custom_name == "__INTERACTIVE__":
+            print_info(f"URL: {url} (Interactive Mode)")
+        elif final_custom_name:
+            print_info(f"URL: {url} (Custom Name: {final_custom_name})")
         else:
             print_info(f"URL: {url}")
         
         start_time = time.time()
         final_path = download_video_from_page(url, browser_path, save_folder, index,
                                               total_videos, minimize_browser, overwrite_existing,
-                                              custom_name=task_custom_name,
+                                              custom_name=final_custom_name,
                                               force=force, quality=quality, limit_rate=limit_rate,
                                               settings_dict=settings_dict, threads=threads)
         elapsed_time = time.time() - start_time
