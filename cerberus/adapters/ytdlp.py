@@ -531,7 +531,16 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
                 continue
             media_seen.add(dedupe_key)
 
-            entry_title = (entry.get('title') or base_title).strip()
+            # If custom_name was provided, we use base_title (which is derived from custom_name)
+            # If it's a playlist/album, we append an index to avoid all videos having same name.
+            if custom_name:
+                if len(unique_entries) > 1:
+                    entry_title = f"{base_title}({idx+1})"
+                else:
+                    entry_title = base_title
+            else:
+                entry_title = (entry.get('title') or base_title).strip()
+
             candidate_base = sanitize_filename(entry_title)
             ext = (meta.get('ext') or 'mp4').lstrip('.')
             target_path = resolve_available_filename(save_folder, candidate_base, ext='.' + ext,

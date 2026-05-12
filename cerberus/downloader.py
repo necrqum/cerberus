@@ -87,7 +87,6 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
     """
     Attempts to download a video from a webpage. Supports settings_dict for library use.
     """
-    print(f"DEBUG: download_video_from_page custom_name = {custom_name}")
     settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
     
     # ensure a separate session counter exists for this top-level URL
@@ -238,8 +237,6 @@ def download_videos_from_list(urls, browser_path, save_folder, minimize_browser,
         # Pass custom_name if it's a single URL or if it's specifically provided.
         # We allow it for multiple URLs now as the index appending handles collisions.
         task_custom_name = custom_name
-
-        print(f"DEBUG: downloader task_custom_name = {task_custom_name}")
 
         print_header(f"Starting {index + 1}/{total_videos}")
         if task_custom_name:
