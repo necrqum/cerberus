@@ -16,6 +16,7 @@ import threading
 
 console = Console()
 interaction_lock = threading.Lock()
+print_lock = threading.Lock()
 
 def setup_rich_logging(level=logging.INFO):
     """Sets up logging using RichHandler for beautiful console output."""
@@ -64,16 +65,20 @@ def ask_for_name(original_title):
 
 def print_header(text):
     """Prints a styled header."""
-    console.print(f"\n[bold blue]===[/bold blue] [bold white]{text}[/bold white] [bold blue]===[/bold blue]\n")
+    with print_lock:
+        console.print(f"\n[bold blue]===[/bold blue] [bold white]{text}[/bold white] [bold blue]===[/bold blue]\n")
 
 def print_success(text):
     """Prints a success message."""
-    console.print(f"[bold green]✔[/bold green] {text}")
+    with print_lock:
+        console.print(f"[bold green]✔[/bold green] {text}")
 
 def print_error(text):
     """Prints an error message."""
-    console.print(f"[bold red]✘[/bold red] {text}")
+    with print_lock:
+        console.print(f"[bold red]✘[/bold red] {text}")
 
 def print_info(text):
     """Prints an informational message."""
-    console.print(f"[bold cyan]ℹ[/bold cyan] {text}")
+    with print_lock:
+        console.print(f"[bold cyan]ℹ[/bold cyan] {text}")

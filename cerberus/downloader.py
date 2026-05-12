@@ -127,7 +127,14 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
 
     # If force or known host, use yt_dlp directly
     if force or any(host in url for host in known_hosts):
-        final_path = ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality, limit_rate=limit_rate, settings_dict=settings_dict)
+        final_path = ytdlp.download_with_youtube_dl(
+            video_url=url, 
+            save_folder=save_folder, 
+            custom_name=custom_name, 
+            quality=quality, 
+            limit_rate=limit_rate, 
+            settings_dict=settings_dict
+        )
     else:
         for attempt in range(3):
             if attempt < 2:
@@ -137,11 +144,12 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                     raw_name, unique_video_links = selenium.intercept_media_url(url, browser_path, minimize_browser, cookies=ng_cookies, wait_time=wait_time)
                     
                     if unique_video_links:
-                        # Aggressive deduplication: strip query params for comparison but keep them for downloading
+                        # Improved deduplication: Normalize URLs and filter duplicates
                         final_links = []
                         seen_clean = set()
                         for l in unique_video_links:
-                            clean_l = l.split('?')[0].split('#')[0] if '?' in l or '#' in l else l
+                            # Strip tokens, session IDs, and known generic prefixes
+                            clean_l = l.split('?')[0].split('#')[0]
                             if clean_l not in seen_clean:
                                 seen_clean.add(clean_l)
                                 final_links.append(l)
@@ -150,6 +158,9 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                         downloaded_any = False
 
                         for idx, video_url_found in enumerate(final_links):
+                            if downloaded_any:
+                                break
+                                
                             # Add thread count to progress hook if in parallel mode
                             n_threads_str = f"Thread Pool: {threads}" if threads > 1 else ""
                             
@@ -180,9 +191,26 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                     print_info(f"Skipping existing file: {candidate}")
                                     continue
                                 current_save_path = candidate
-                                ok = ytdlp.download_media_url(video_url_found, current_save_path, settings, original_page_url=url, limit_rate=limit_rate, progress_hooks=[hooked_progress])
+                                ok = ytdlp.download_media_url(
+                                    media_url=video_url_found, 
+                                    target_path=current_save_path, 
+                                    settings=settings, 
+                                    original_page_url=url, 
+                                    limit_rate=limit_rate, 
+                                    progress_hooks=[hooked_progress]
+                                )
                                 if not ok:
-                                    current_save_path = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=base, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate, settings_dict=settings_dict, progress_hooks=[hooked_progress])
+                                    current_save_path = ytdlp.download_with_youtube_dl(
+                                        video_url=video_url_found, 
+                                        save_folder=save_folder, 
+                                        custom_name=base, 
+                                        quality=quality, 
+                                        session_key=url, 
+                                        overwrite_existing=overwrite_existing, 
+                                        limit_rate=limit_rate, 
+                                        settings_dict=settings_dict, 
+                                        progress_hooks=[hooked_progress]
+                                    )
                                 if current_save_path:
                                     downloaded_any = True
                                     final_path = current_save_path
@@ -201,9 +229,26 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                     d['n_threads'] = n_threads_str
                                     ytdlp.ytdlp_progress_hook(d)
 
-                                ok = ytdlp.download_media_url(video_url_found, resolved, settings, original_page_url=url, limit_rate=limit_rate, progress_hooks=[hooked_progress])
+                                ok = ytdlp.download_media_url(
+                                    media_url=video_url_found, 
+                                    target_path=resolved, 
+                                    settings=settings, 
+                                    original_page_url=url, 
+                                    limit_rate=limit_rate, 
+                                    progress_hooks=[hooked_progress]
+                                )
                                 if not ok:
-                                    final_from_ydl = ytdlp.download_with_youtube_dl(video_url_found, save_folder, custom_name=None, quality=quality, session_key=url, overwrite_existing=overwrite_existing, limit_rate=limit_rate, settings_dict=settings_dict, progress_hooks=[hooked_progress])
+                                    final_from_ydl = ytdlp.download_with_youtube_dl(
+                                        video_url=video_url_found, 
+                                        save_folder=save_folder, 
+                                        custom_name=None, 
+                                        quality=quality, 
+                                        session_key=url, 
+                                        overwrite_existing=overwrite_existing, 
+                                        limit_rate=limit_rate, 
+                                        settings_dict=settings_dict, 
+                                        progress_hooks=[hooked_progress]
+                                    )
                                     if final_from_ydl:
                                         downloaded_any = True
                                         final_path = final_from_ydl
@@ -219,7 +264,14 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                     log_error(f"Error during Selenium interception: {e}")
             else:
                 print_info("Selenium attempts failed - falling back to yt_dlp (attempt 3)...")
-                final_path = ytdlp.download_with_youtube_dl(url, save_folder, custom_name, quality, limit_rate=limit_rate, settings_dict=settings_dict)
+                final_path = ytdlp.download_with_youtube_dl(
+                    video_url=url, 
+                    save_folder=save_folder, 
+                    custom_name=custom_name, 
+                    quality=quality, 
+                    limit_rate=limit_rate, 
+                    settings_dict=settings_dict
+                )
 
     if final_path:
         run_post_processing_hook(final_path, url, settings)
@@ -236,6 +288,16 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
         queue = load_queue()
         # Filter out already completed
         url_items = [item for item in url_items if item["url"] not in queue["completed"]]
+        
+        # Deduplicate the list to prevent parallel threads from starting same URL
+        seen_urls = set()
+        unique_items = []
+        for item in url_items:
+            if item["url"] not in seen_urls:
+                seen_urls.add(item["url"])
+                unique_items.append(item)
+        url_items = unique_items
+        
         queue["urls"] = [item["url"] for item in url_items]
         save_queue(queue)
 
@@ -261,11 +323,21 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
             print_info(f"URL: {url}")
         
         start_time = time.time()
-        final_path = download_video_from_page(url, browser_path, save_folder, index,
-                                              total_videos, minimize_browser, overwrite_existing,
-                                              custom_name=final_custom_name,
-                                              force=force, quality=quality, limit_rate=limit_rate,
-                                              settings_dict=settings_dict, threads=threads)
+        final_path = download_video_from_page(
+            url=url, 
+            browser_path=browser_path, 
+            save_folder=save_folder, 
+            video_index=index,
+            total_videos=total_videos, 
+            minimize_browser=minimize_browser, 
+            overwrite_existing=overwrite_existing,
+            custom_name=final_custom_name,
+            force=force, 
+            quality=quality, 
+            limit_rate=limit_rate,
+            settings_dict=settings_dict, 
+            threads=threads
+        )
         elapsed_time = time.time() - start_time
         
         if final_path:

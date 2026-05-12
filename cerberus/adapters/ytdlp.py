@@ -100,9 +100,9 @@ def ytdlp_progress_hook(d):
                 if filename in rich_tasks:
                     task_id = rich_tasks[filename]
                     progress.update(task_id, completed=d.get('total_bytes', 0), threads=d.get('n_threads', ''))
-                    # Optionally remove task after completion
-                    # progress.remove_task(task_id)
-                    # del rich_tasks[filename]
+                    # Remove task after completion to keep HUD clean in multithreading
+                    progress.remove_task(task_id)
+                    del rich_tasks[filename]
             
         elif status == 'error':
             with rich_lock:
@@ -559,7 +559,13 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
 
             saved_path = None
             if not used_fallback_ydl_download:
-                ok = download_media_url(media_url, target_path, settings, original_page_url=entry_url)
+                ok = download_media_url(
+                    media_url=media_url, 
+                    target_path=target_path, 
+                    settings=settings, 
+                    original_page_url=entry_url,
+                    progress_hooks=progress_hooks
+                )
                 if not ok:
                     used_fallback_ydl_download = True
                 else:
@@ -570,7 +576,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
                 ydl_opts_entry.update({
                     'outtmpl': target_path,
                     'noplaylist': True,
-                    'progress_hooks': [ytdlp_progress_hook],
+                    'progress_hooks': progress_hooks or [ytdlp_progress_hook],
                     'postprocessors': [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}],
                 })
                 try:
@@ -610,7 +616,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
     ydl_opts.update({
         'outtmpl': target_path,
         'noplaylist': True,
-        'progress_hooks': [ytdlp_progress_hook],
+        'progress_hooks': progress_hooks or [ytdlp_progress_hook],
         'postprocessors': [{'key': 'FFmpegVideoConvertor', 'preferedformat': 'mp4'}],
     })
 
