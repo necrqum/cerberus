@@ -81,9 +81,69 @@ def run_post_processing_hook(final_path, url, settings):
     except Exception as e:
         print_error(f"Post-processing failed: {e}")
 
+def prepare_naming_for_url(url, browser_path, save_folder, minimize_browser, settings_dict=None, forced_name=None):
+    """
+    Dry-run of extraction to get titles and ask user for names BEFORE downloading.
+    Returns a list of items: {"url": video_url, "name": custom_name}
+    """
+    settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
+    
+    # ... (cookie logic remains same)
+    
+    # 1. Try yt-dlp first
+    is_known = any(host in url for host in known_hosts)
+    if is_known:
+        info = ytdlp.get_info(video_url=url, settings_dict=settings_dict)
+        if info:
+            base_title = info.get('title') or info.get('fulltitle') or "video"
+            if info.get('entries'):
+                results = []
+                valid_entries = [e for e in info['entries'] if e]
+                for idx, entry in enumerate(valid_entries):
+                    orig_title = entry.get('title') or f"{base_title}_{idx+1}"
+                    # If forced_name exists, we use it (with index if multiple)
+                    if forced_name:
+                        custom = f"{forced_name}({idx+1})" if len(valid_entries) > 1 else forced_name
+                    else:
+                        custom = ask_for_name(original_title=orig_title)
+                    results.append({"url": entry.get('url') or entry.get('webpage_url') or url, "name": custom})
+                return results
+            else:
+                custom = forced_name if forced_name else ask_for_name(original_title=base_title)
+                return [{"url": url, "name": custom}]
+
+    # 2. Try Selenium
+    try:
+        raw_name, unique_video_links = selenium.intercept_media_url(
+            url=url, 
+            browser_path=browser_path, 
+            minimize_browser=minimize_browser, 
+            cookies=ng_cookies,
+            wait_time=int(settings.get('selenium_wait_time', 5))
+        )
+        if unique_video_links:
+            results = []
+            for idx, v_url in enumerate(unique_video_links):
+                prompt = raw_name
+                if len(unique_video_links) > 1:
+                    prompt += f" [Part {idx+1}]"
+                
+                if forced_name:
+                    custom = f"{forced_name}({idx+1})" if len(unique_video_links) > 1 else forced_name
+                else:
+                    custom = ask_for_name(original_title=prompt)
+                results.append({"url": v_url, "name": custom})
+            return results
+    except Exception as e:
+        log_error(f"Error during upfront naming for {url}: {e}")
+    
+    # Fallback
+    return [{"url": url, "name": forced_name}]
+
 def download_video_from_page(url, browser_path, save_folder, video_index, total_videos,
                              minimize_browser, overwrite_existing, custom_name=None, 
-                             force=False, quality=None, limit_rate=None, settings_dict=None, threads=1):
+                             force=False, quality=None, limit_rate=None, settings_dict=None, threads=1,
+                             is_pre_extracted=False):
     """
     Attempts to download a video from a webpage. Supports settings_dict for library use.
     """
@@ -125,7 +185,32 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
 
     final_path = None
 
-    # If force or known host, use yt_dlp directly
+    # If it's pre-extracted, we already have a more concrete URL (or the same one if it couldn't be expanded)
+    # We try to download it directly or via yt-dlp fallback without going through Selenium again.
+    if is_pre_extracted:
+        # Determine base title for resolve_available_filename
+        # We don't have the info dict here easily, so we rely on custom_name or URL
+        base = custom_name or sanitize_filename(os.path.basename(url.split('?')[0]))
+        if not base or base == "video":
+            base = "video_" + str(video_index + 1)
+        
+        target = resolve_available_filename(save_folder, base, ext=".mp4", overwrite_existing=overwrite_existing, session_key=url)
+        if target is None:
+             return "SKIPPED"
+             
+        # 1. Try requests/ffmpeg
+        ok = ytdlp.download_media_url(media_url=url, target_path=target, settings=settings, limit_rate=limit_rate)
+        if ok:
+            final_path = target
+        else:
+            # 2. Try yt-dlp
+            final_path = ytdlp.download_with_youtube_dl(video_url=url, save_folder=save_folder, custom_name=custom_name, quality=quality, limit_rate=limit_rate, settings_dict=settings_dict)
+        
+        if final_path:
+            run_post_processing_hook(final_path, url, settings)
+        return final_path
+
+    # Standard Path: If force or known host, use yt_dlp directly
     if force or any(host in url for host in known_hosts):
         final_path = ytdlp.download_with_youtube_dl(
             video_url=url, 
@@ -135,6 +220,10 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
             limit_rate=limit_rate, 
             settings_dict=settings_dict
         )
+        if final_path is None:
+            return "SKIPPED"
+        return final_path
+    
     else:
         for attempt in range(3):
             if attempt < 2:
@@ -171,7 +260,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
 
                             # Interactive Naming Prompt
                             entry_custom_name = custom_name
-                            if entry_custom_name == "__INTERACTIVE__":
+                            if entry_custom_name == "__INTERACTIVE__" and not is_pre_extracted:
                                 # Use video_name (scraped from page) as reference
                                 prompt_title = video_name
                                 if len(final_links) > 1:
@@ -189,7 +278,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                     candidate = os.path.join(save_folder, f"{base}.mp4")
                                 if os.path.exists(candidate) and not overwrite_existing:
                                     print_info(f"Skipping existing file: {candidate}")
-                                    continue
+                                    return "SKIPPED"
                                 current_save_path = candidate
                                 ok = ytdlp.download_media_url(
                                     media_url=video_url_found, 
@@ -222,7 +311,7 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
                                     base_file = os.path.join(save_folder, f"{video_name}.mp4")
                                     if os.path.exists(base_file) and not overwrite_existing:
                                          print_info(f"Skipping existing file: {base_file}")
-                                    continue
+                                    return "SKIPPED"
                                 
                                 # We wrap the hook to inject thread info
                                 def hooked_progress(d):
@@ -303,32 +392,71 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
 
     total_videos = len(url_items)
 
+    # ================================
+    # Phase 1: Naming & Preparation
+    # ================================
+    # If interactive mode is active, we ask for names UPFRONT so the downloads don't interrupt.
+    # We do this in a single-threaded loop to keep the terminal clean.
+    processed_items = []
+    if custom_name == "__INTERACTIVE__" and not stop_download.is_set():
+        print_info("Entering Interactive Naming Phase...")
+        for index, item in enumerate(url_items):
+            if stop_download.is_set():
+                break
+            
+            url = item["url"]
+            # To ask for names, we need to know what's on the page.
+            # We call a 'dry-run' of the extraction to get titles.
+            print_header(f"Preparing {index + 1}/{total_videos}")
+            print_info(f"URL: {url}")
+            
+            # This will prompt the user and return the list of (url, custom_name)
+            prepared = prepare_naming_for_url(
+                url=url, 
+                browser_path=browser_path, 
+                save_folder=save_folder,
+                minimize_browser=minimize_browser,
+                settings_dict=settings_dict,
+                forced_name=item["name"]
+            )
+            if prepared:
+                processed_items.extend(prepared)
+    else:
+        # Standard mode: Each URL in the list is a single task
+        processed_items = url_items
+
+    # ================================
+    # Phase 2: Download Pool
+    # ================================
+    total_tasks = len(processed_items)
+    if stop_download.is_set():
+        return None
+
     def download_task(item_info):
         index, item = item_info
         url = item["url"]
-        item_name = item.get("name") # Name from list (URL:::Name)
+        item_name = item.get("name") # Name from list (URL:::Name) or Interactive Phase
         
         if stop_download.is_set():
             return None
 
-        # Priority: 1. Name from list | 2. Global -n argument | 3. Original
-        final_custom_name = item_name or custom_name
+        # Priority: 1. Name from list/Interactive | 2. Global -n argument | 3. Original
+        final_custom_name = item_name or (custom_name if custom_name != "__INTERACTIVE__" else None)
 
-        print_header(f"Starting {index + 1}/{total_videos}")
-        if final_custom_name == "__INTERACTIVE__":
-            print_info(f"URL: {url} (Interactive Mode)")
-        elif final_custom_name:
-            print_info(f"URL: {url} (Custom Name: {final_custom_name})")
+        print_header(f"Downloading {index + 1}/{total_tasks}")
+        if final_custom_name:
+            print_info(f"URL: {url} (Name: {final_custom_name})")
         else:
             print_info(f"URL: {url}")
         
         start_time = time.time()
+        # Note: threads=1 here because we are ALREADY in the pool.
         final_path = download_video_from_page(
             url=url, 
             browser_path=browser_path, 
             save_folder=save_folder, 
             video_index=index,
-            total_videos=total_videos, 
+            total_videos=total_tasks, 
             minimize_browser=minimize_browser, 
             overwrite_existing=overwrite_existing,
             custom_name=final_custom_name,
@@ -336,11 +464,14 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
             quality=quality, 
             limit_rate=limit_rate,
             settings_dict=settings_dict, 
-            threads=threads
+            threads=threads,
+            is_pre_extracted=True # Tell it to not ask again
         )
         elapsed_time = time.time() - start_time
         
-        if final_path:
+        if final_path == "SKIPPED":
+            print_info(f"Skipped in {elapsed_time:.2f}s: {url}")
+        elif final_path:
             print_success(f"Completed in {elapsed_time:.2f}s: {os.path.basename(final_path)}")
             if queue:
                 with session_lock: # Ensure thread-safe queue updates
@@ -351,15 +482,19 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
             print_error(f"Failed in {elapsed_time:.2f}s: {url}")
         return final_path
 
-    if threads > 1:
-        print_info(f"Downloading with {threads} parallel threads...")
-        with ThreadPoolExecutor(max_workers=threads) as executor:
-            list(executor.map(download_task, enumerate(url_items)))
-    else:
-        for item in enumerate(url_items):
-            if stop_download.is_set():
-                break
-            download_task(item)
+    try:
+        if threads > 1 and total_tasks > 1:
+            print_info(f"Starting Download Pool with {threads} parallel threads...")
+            with ThreadPoolExecutor(max_workers=threads) as executor:
+                list(executor.map(download_task, enumerate(processed_items)))
+        else:
+            for item in enumerate(processed_items):
+                if stop_download.is_set():
+                    break
+                download_task(item)
+    except KeyboardInterrupt:
+        stop_download.set()
+        print_info("Keyboard Interrupt detected. Stopping...")
 
     if queue and not stop_download.is_set() and not url_items:
         # Clear queue on successful completion

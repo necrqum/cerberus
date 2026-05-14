@@ -18,7 +18,7 @@ try:
     from ..config import SETTINGS_PATH, load_settings, get_default_download_dir
     from ..utils import (
         log_info, log_error, sanitize_filename, resolve_available_filename,
-        human_readable_size, print_if_not_ignored
+        human_readable_size, print_if_not_ignored, interaction_lock
     )
     from ..events import stop_download
     from ..ui import create_progress_bar, ask_for_name
@@ -26,17 +26,19 @@ except (ImportError, ValueError):
     from config import SETTINGS_PATH, load_settings, get_default_download_dir
     from utils import (
         log_info, log_error, sanitize_filename, resolve_available_filename,
-        human_readable_size, print_if_not_ignored
+        human_readable_size, print_if_not_ignored, interaction_lock
     )
     from events import stop_download
     from ui import create_progress_bar, ask_for_name
 
 def get_progress_bar():
     global rich_progress
-    with rich_lock:
-        if rich_progress is None:
-            rich_progress = create_progress_bar()
-            rich_progress.start()
+    # Wait if an interactive naming prompt is active
+    with interaction_lock:
+        with rich_lock:
+            if rich_progress is None:
+                rich_progress = create_progress_bar()
+                rich_progress.start()
     return rich_progress
 
 def stop_progress_bar():
@@ -445,6 +447,26 @@ def sort_downloaded_file(file_path, original_url, settings):
     except Exception as e:
         log_error(f"Error moving file to sorted folder: {e}")
         return file_path
+
+def get_info(video_url, settings_dict=None):
+    """Extracts metadata without downloading."""
+    settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': 'in_playlist',
+    }
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        if settings.get('use_browser_cookies', 'false').lower() == 'true':
+            browser_name = get_yt_dlp_browser(settings.get('browser_path'))
+            opts['cookiesfrombrowser'] = (browser_name,)
+    
+    try:
+        with yt_dlp.YoutubeDL(opts) as ydl:
+            return ydl.extract_info(video_url, download=False)
+    except Exception as e:
+        log_error(f"Error fetching info for {video_url}: {e}")
+        return None
 
 def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None, settings_dict=None, progress_hooks=None):
     """

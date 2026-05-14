@@ -25,7 +25,14 @@ def is_output_hidden(settings, args):
 
 def sigint_handler(sig, frame):
     """Handle Ctrl+C gracefully."""
+    if stop_download.is_set():
+        # Force exit on second Ctrl+C
+        print("\n[bold red]Forcing exit...[/bold red]")
+        os._exit(1)
     stop_download.set()
+    from .adapters.ytdlp import stop_progress_bar
+    stop_progress_bar()
+    print("\n[bold yellow]Abort signal received. Finishing active tasks... (Press Ctrl+C again to force exit)[/bold yellow]")
 
 def main():
     """Main entry point for the command-line interface."""

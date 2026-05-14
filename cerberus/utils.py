@@ -46,17 +46,25 @@ def log_info(message):
 def log_error(message):
     logger.error(message)
 
+# ====== Locks and Session-based numbering ======
+session_filename_counters = {}
+session_lock = threading.Lock()
+print_lock = threading.Lock()
+interaction_lock = threading.Lock()
+
 def custom_print(*args, hidden=False, **kwargs):
-    """Prints to console only if hidden is False."""
+    """Prints to console only if hidden is False. Thread-safe."""
     if not hidden:
-        print(*args, **kwargs)
+        with print_lock:
+            print(*args, **kwargs)
 
 def print_if_not_ignored(message, settings):
     """
-    Prints message to console only if 'ignoreerrors' is not set to true.
+    Prints message to console only if 'ignoreerrors' is not set to true. Thread-safe.
     """
     if settings.get('ignoreerrors', 'false').lower() != 'true':
-        print(message)
+        with print_lock:
+            print(message)
 
 # ================================
 # Utility Functions
@@ -99,10 +107,6 @@ def human_readable_size(num, suffix='B'):
             return f"{num:3.1f}{unit}{suffix}"
         num /= 1024.0
     return f"{num:.1f}P{suffix}"
-
-# ====== Session-based filename counters to number files from same URL/session ======
-session_filename_counters = {}
-session_lock = threading.Lock()
 
 def resolve_available_filename(save_folder, base_name, ext=".mp4", overwrite_existing=False, session_key=None):
     """

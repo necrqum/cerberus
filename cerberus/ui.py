@@ -13,10 +13,9 @@ from rich.progress import (
 from rich.logging import RichHandler
 import logging
 import threading
+from .utils import print_lock, interaction_lock
 
 console = Console()
-interaction_lock = threading.Lock()
-print_lock = threading.Lock()
 
 def setup_rich_logging(level=logging.INFO):
     """Sets up logging using RichHandler for beautiful console output."""
@@ -45,24 +44,28 @@ def ask_for_name(original_title):
     """
     Interactively asks the user for a custom filename.
     Thread-safe and manages progress bar state.
+    Blocks other threads from printing during interaction.
     """
-    from .adapters.ytdlp import stop_progress_bar, get_progress_bar
+    from .adapters.ytdlp import stop_progress_bar
     
     with interaction_lock:
-        # Hide progress bar if active
-        stop_progress_bar()
-        
-        console.print(f"\n[bold yellow]Interactive Naming[/bold yellow]")
-        console.print(f"Original Title: [cyan]{original_title}[/cyan]")
-        
-        try:
-            custom = input("Enter custom name (Leave blank to keep original): ").strip()
-        except EOFError:
-            custom = ""
+        with print_lock:
+            # Hide progress bar if active
+            stop_progress_bar()
             
-        # Resume progress bar (it will be recreated on next update)
-        return custom if custom else None
+            console.print(f"\n[bold yellow]Interactive Naming[/bold yellow]")
+            console.print(f"Original Title: [cyan]{original_title}[/cyan]")
 
+            try:
+                custom = input("Enter custom name (Leave blank to keep original): ").strip()
+            except (EOFError, KeyboardInterrupt):
+                # Re-set global stop if interrupted here
+                from .events import stop_download
+                stop_download.set()
+                return None
+
+            # Note: Progress bar will be recreated by next thread that needs it
+            return custom if custom else None
 def print_header(text):
     """Prints a styled header."""
     with print_lock:
