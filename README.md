@@ -10,6 +10,20 @@
 
 **Cerberus** combines the power of [**Selenium**](https://github.com/SeleniumHQ/Selenium) network interception and [**yt-dlp**](https://github.com/yt-dlp/yt-dlp) to extract media even from websites that don't provide direct download links.
 
+### Advanced Naming
+- **Interactive Naming**: Use the `-n` flag without a value to name each video as it's discovered. Cerberus will prompt you for all names upfront before starting the download pool.
+- **List-Based Naming**: Specify names directly in your lists using `URL:::Name`.
+  - Example: `cerberus -u "http://site.com/vid:::Custom Name, http://other.com/vid2"`
+
+### Download Profiles
+- **Manual Management**: Profiles are stored as `.txt` files in `~/.Cerberus/Profiles/`. You can edit them directly in any text editor.
+- **CLI Management**:
+  - Add/Update: `cerberus --add-profile "fast:default_limit_rate=5M"`
+  - Delete: `cerberus --del-profile fast`
+- **Usage**: Use `-P` or `--profile` to apply a profile's settings.
+
+> 📖 **Full Manual**: See [**COMMANDS.md**](COMMANDS.md) for a complete list of all CLI arguments and configuration settings.
+
 ### Automation Hooks
 Cerberus allows you to run custom shell commands after a download. Use the `post_download_command` in your settings.
 > ⚠️ **Security Note**: Commands are executed using `shell=True`. Be cautious when using templates with untrusted URLs or filenames.

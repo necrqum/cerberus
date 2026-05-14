@@ -4,6 +4,25 @@ All notable changes to this project will be documented in this file.
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
+## [0.2.4] - 2026-05-14
+
+### Added
+- **"Naming First" Architecture**: Interactive naming now happens in a dedicated preparation phase before downloads start.
+- **Advanced List Naming**: Added support for `URL:::Name` format in batch lists and files.
+- **Improved Profile System**: Profiles are now stored as individual `.txt` files in a `Profiles/` folder.
+- **CLI Profile Management**: Added `--add-profile` and `--del-profile` commands.
+- **Force Exit**: Double `Ctrl+C` now forces an immediate shutdown.
+
+### Fixed
+- **Renaming Priority**: Fixed bug where original titles overrode custom `-n` names (The "Erome Bug").
+- **TUI Stability**: Fixed `AttributeError` crash and interleaved output during parallel downloads.
+- **Ctrl+C Resilience**: Restored abort functionality across all program phases.
+- **Redundant Downloads**: Implemented automatic list deduplication and fixed loop-break logic.
+
+### Changed
+- **HUD HUD Cleanliness**: Completed tasks are now automatically removed from the terminal progress bars.
+- **Keyword Argument Strengthening**: Refactored internal API to use keyword arguments for improved robustness.
+
 ## [0.2.3] - 2026-05-10
 ### Added
 - **Library Mode (Programmatic API)**: Cerberus can now be imported as a Python module. Core functions now accept a `settings_dict` to bypass global configuration files.
