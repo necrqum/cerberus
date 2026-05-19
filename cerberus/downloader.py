@@ -237,8 +237,6 @@ def download_video_from_page(url, browser_path, save_folder, video_index, total_
             limit_rate=limit_rate, 
             settings_dict=settings_dict
         )
-        if final_path is None:
-            return "SKIPPED"
         return final_path
     
     else:
@@ -493,6 +491,11 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
         
         if final_path == "SKIPPED":
             print_info(f"Skipped in {elapsed_time:.2f}s: {url}")
+            if queue:
+                with session_lock:
+                    if url not in queue["completed"]:
+                        queue["completed"].append(url)
+                        save_queue(queue)
         elif final_path:
             print_success(f"Completed in {elapsed_time:.2f}s: {os.path.basename(final_path)}")
             if queue:
@@ -504,21 +507,26 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
             print_error(f"Failed in {elapsed_time:.2f}s: {url}")
         return final_path
 
+    # Tracking failures to decide if we can delete the queue.json
+    all_results = []
     try:
         if threads > 1 and total_tasks > 1:
             print_info(f"Starting Download Pool with {threads} parallel threads...")
             with ThreadPoolExecutor(max_workers=threads) as executor:
-                list(executor.map(download_task, enumerate(processed_items)))
+                all_results = list(executor.map(download_task, enumerate(processed_items)))
         else:
             for item in enumerate(processed_items):
                 if stop_download.is_set():
                     break
-                download_task(item)
+                res = download_task(item)
+                all_results.append(res)
     except KeyboardInterrupt:
         stop_download.set()
         print_info("Keyboard Interrupt detected. Stopping...")
 
-    if queue and not stop_download.is_set() and not url_items:
+    # Only clear queue if we actually processed everything successfully (or skipped)
+    has_failures = any(r is None for r in all_results)
+    if queue and not stop_download.is_set() and not has_failures:
         # Clear queue on successful completion
         if os.path.exists(QUEUE_PATH):
             os.remove(QUEUE_PATH)

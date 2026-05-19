@@ -227,9 +227,10 @@ def get_info_with_retry(video_url, settings_dict=None, max_retries=5):
                 return ydl.extract_info(video_url, download=False)
         except Exception as e:
             e_str = str(e)
-            if "429" in e_str or "Too Many Requests" in e_str:
+            # Retry on 429 (Rate Limit) and 410 (Gone - sometimes transient on some sites)
+            if any(err in e_str for err in ["429", "Too Many Requests", "410", "Gone"]):
                 wait_time = (2 ** attempt) * 15 + random.randint(1, 30)
-                log_info(f"Extraction Rate Limited (429) for {video_url}. Backing off for {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                log_info(f"Extraction Error ({e_str[:20]}) for {video_url}. Backing off for {wait_time}s... (Attempt {attempt+1}/{max_retries})")
                 time.sleep(wait_time)
                 continue
             log_error(f"Error fetching info for {video_url}: {e}")
@@ -375,11 +376,10 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                         time.sleep(1 + attempt)
                         continue
 
-                elif status == 429:
-                    # Enhanced exponential backoff for rate limiting
-                    # Randomized to prevent thundering herd
+                elif status in (429, 410):
+                    # Enhanced exponential backoff for rate limiting and 410 errors
                     wait_time = (2 ** attempt) * 10 + random.randint(1, 15)
-                    log_info(f"HTTP 429 (Too Many Requests) for {os.path.basename(target_path)}. Backing off for {wait_time}s... (Attempt {attempt}/{max_retries})")
+                    log_info(f"HTTP {status} for {os.path.basename(target_path)}. Backing off for {wait_time}s... (Attempt {attempt}/{max_retries})")
                     time.sleep(wait_time)
                     continue
                 elif status in (403, 401):
@@ -625,6 +625,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
                                                      session_key=session_key or video_url)
             if target_path is None:
                 print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, candidate_base + '.' + ext)}", settings)
+                final_paths.append("SKIPPED")
                 continue
 
             saved_path = None
@@ -680,7 +681,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
     target_path = resolve_available_filename(save_folder, final_entry_title, ext=".mp4", overwrite_existing=overwrite_existing, session_key=session_key or video_url)
     if target_path is None:
         print_if_not_ignored(f"Skipping existing file: {os.path.join(save_folder, final_entry_title + '.mp4')}", settings)
-        return None
+        return "SKIPPED"
 
     ydl_opts = common_opts.copy()
     ydl_opts.update({
