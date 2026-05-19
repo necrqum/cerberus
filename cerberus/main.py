@@ -17,7 +17,7 @@ from .downloader import (
     download_video_from_page, download_videos_from_list, load_queue
 )
 from .events import stop_download
-from .ui import setup_rich_logging, print_info, print_header
+from .ui import setup_rich_logging, print_info, print_header, print_error
 
 def is_output_hidden(settings, args):
     """Checks whether console output should be hidden."""

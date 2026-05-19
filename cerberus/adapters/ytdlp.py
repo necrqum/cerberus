@@ -173,7 +173,7 @@ def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_inst
             close_temp = True
         entry_info = None
         try:
-            entry_info = ydl_instance.extract_info(entry_url_fallback, download=False)
+            entry_info = get_info_with_retry(entry_url_fallback, max_retries=3)
         except Exception:
             entry_info = None
         if entry_info:
@@ -208,6 +208,38 @@ def get_direct_media_url(entry_obj, entry_url_fallback, quality='best', ydl_inst
 
     return None, {}
 
+def get_info_with_retry(video_url, settings_dict=None, max_retries=5):
+    """Extracts metadata with exponential backoff for 429 errors."""
+    settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
+    opts = {
+        'quiet': True,
+        'no_warnings': True,
+        'extract_flat': 'in_playlist',
+    }
+    if 'youtube.com' in video_url or 'youtu.be' in video_url:
+        if settings.get('use_browser_cookies', 'false').lower() == 'true':
+            browser_name = get_yt_dlp_browser(settings.get('browser_path'))
+            opts['cookiesfrombrowser'] = (browser_name,)
+    
+    for attempt in range(max_retries):
+        try:
+            with yt_dlp.YoutubeDL(opts) as ydl:
+                return ydl.extract_info(video_url, download=False)
+        except Exception as e:
+            e_str = str(e)
+            if "429" in e_str or "Too Many Requests" in e_str:
+                wait_time = (2 ** attempt) * 15 + random.randint(1, 30)
+                log_info(f"Extraction Rate Limited (429) for {video_url}. Backing off for {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                time.sleep(wait_time)
+                continue
+            log_error(f"Error fetching info for {video_url}: {e}")
+            break
+    return None
+
+def get_info(video_url, settings_dict=None):
+    """Extracts metadata without downloading (alias for get_info_with_retry)."""
+    return get_info_with_retry(video_url, settings_dict=settings_dict)
+
 def download_media_url(media_url, target_path, settings, original_page_url=None, max_retries=3, limit_rate=None, progress_hooks=None):
     """
     Robust download + unified progress reporting with bandwidth limiting.
@@ -229,6 +261,7 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
     session = requests.Session()
     session.headers.update(headers)
 
+    tmp = target_path + ".part"
     attempt = 0
     while attempt < max_retries:
         attempt += 1
@@ -242,7 +275,6 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                          return False
 
                     total_size = int(r.headers.get('content-length', 0) or 0)
-                    tmp = target_path + ".part"
                     
                     # Resume logic
                     downloaded = 0
@@ -313,19 +345,21 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
 
                     # Atomic replace
                     try:
+                        if not os.path.exists(tmp):
+                             log_error(f"Part file disappeared before replace: {tmp}")
+                             return False
                         os.replace(tmp, target_path)
                     except OSError as e:
                         log_error(f"Atomic replace failed: {e}. Retrying in 2s...")
                         time.sleep(2)
                         try:
-                            os.replace(tmp, target_path)
+                            if os.path.exists(tmp):
+                                os.replace(tmp, target_path)
+                            else:
+                                 log_error(f"Part file missing on retry replace: {tmp}")
+                                 return False
                         except Exception as e2:
                             log_error(f"Second attempt to replace temp file failed: {e2}")
-                            try:
-                                if os.path.exists(tmp):
-                                    os.remove(tmp)
-                            except Exception:
-                                pass
                             raise
 
                     # Verify file and call finished hook
@@ -360,13 +394,6 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
             time.sleep(1 + attempt)
             continue
 
-    # Final check before ffmpeg fallback: If we hit 429, DO NOT fallback to ffmpeg.
-    # ffmpeg will also get blocked and might worsen the rate limit.
-    # We only fallback if we got 403/401 or similar.
-    
-    # We need to know if the last status was 429.
-    # Actually, I can check if status was 429 in the loop.
-    
     # Verify file and call finished hook
     if os.path.exists(target_path):
         fsize = os.path.getsize(target_path)
@@ -388,10 +415,6 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
     # ffmpeg fallback (Only if not a 429/rate-limiting issue)
     # Status 401/403 might be bypassable by ffmpeg's different network stack
     try:
-        # Check if last response was 429
-        # (Assuming 'status' variable persists from loop or we set it)
-        # We can't easily check 'status' here if the loop finished.
-        # Let's check if attempts reached max_retries.
         if attempt >= max_retries:
              log_error(f"Max retries reached for {media_url}. Skipping ffmpeg fallback to avoid further rate limiting.")
              return False
@@ -498,26 +521,6 @@ def sort_downloaded_file(file_path, original_url, settings):
         log_error(f"Error moving file to sorted folder: {e}")
         return file_path
 
-def get_info(video_url, settings_dict=None):
-    """Extracts metadata without downloading."""
-    settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
-    opts = {
-        'quiet': True,
-        'no_warnings': True,
-        'extract_flat': 'in_playlist',
-    }
-    if 'youtube.com' in video_url or 'youtu.be' in video_url:
-        if settings.get('use_browser_cookies', 'false').lower() == 'true':
-            browser_name = get_yt_dlp_browser(settings.get('browser_path'))
-            opts['cookiesfrombrowser'] = (browser_name,)
-    
-    try:
-        with yt_dlp.YoutubeDL(opts) as ydl:
-            return ydl.extract_info(video_url, download=False)
-    except Exception as e:
-        log_error(f"Error fetching info for {video_url}: {e}")
-        return None
-
 def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=None, session_key=None, overwrite_existing=None, limit_rate=None, settings_dict=None, progress_hooks=None):
     """
     Public entry point for yt_dlp download. Supports settings_dict for library use.
@@ -554,12 +557,7 @@ def download_with_youtube_dl(video_url, save_folder, custom_name=None, quality=N
     if settings.get('ignoreerrors', 'false').lower() == 'true':
         common_opts['ignoreerrors'] = True
 
-    try:
-        with yt_dlp.YoutubeDL(common_opts) as ydl:
-            info = ydl.extract_info(video_url, download=False)
-    except Exception as e:
-        log_error(f"yt_dlp extract_info error: {e}")
-        info = None
+    info = get_info_with_retry(video_url, settings_dict=settings_dict)
 
     base_title = None
     if custom_name:

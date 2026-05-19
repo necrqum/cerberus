@@ -89,8 +89,24 @@ def prepare_naming_for_url(url, browser_path, save_folder, minimize_browser, set
     """
     settings = settings_dict if settings_dict is not None else load_settings(SETTINGS_PATH)
     
-    # ... (cookie logic remains same)
-    
+    # Determine known hosts including custom
+    default_hosts = ["youtube.com", "pornhub.com"]
+    custom_hosts_str = settings.get('custom_hosts', "")
+    additional_hosts = [host.strip() for host in custom_hosts_str.split(",") if host.strip()] if custom_hosts_str else []
+    known_hosts = default_hosts + additional_hosts
+
+    # Handle Newgrounds login if needed
+    is_ng = "newgrounds.com/portal/view" in url
+    ng_cookies = None
+    if is_ng:
+        if settings.get('use_browser_cookies','false').lower() == 'true':
+            try:
+                import browser_cookie3
+                ng_cookies = browser_cookie3.load(domain_name='newgrounds.com')
+            except Exception as e:
+                log_error(f"Error loading browser cookies: {e}")
+                ng_cookies = None
+
     # 1. Try yt-dlp first
     is_known = any(host in url for host in known_hosts)
     if is_known:
