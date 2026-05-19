@@ -7,6 +7,7 @@ import logging
 import time
 import subprocess
 import json
+import random
 from concurrent.futures import ThreadPoolExecutor
 
 # Modular Imports
@@ -440,6 +441,10 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
         if stop_download.is_set():
             return None
 
+        # Random jitter to prevent all threads hitting server at once (Rate Limit Guard)
+        if threads > 1:
+            time.sleep(random.uniform(0.1, 1.5))
+
         # Priority: 1. Name from list/Interactive | 2. Global -n argument | 3. Original
         final_custom_name = item_name or (custom_name if custom_name != "__INTERACTIVE__" else None)
 
@@ -451,6 +456,7 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
         
         start_time = time.time()
         # Note: threads=1 here because we are ALREADY in the pool.
+        # is_pre_extracted is only True if we actually did the Preparation Phase (Interactive mode)
         final_path = download_video_from_page(
             url=url, 
             browser_path=browser_path, 
@@ -465,7 +471,7 @@ def download_videos_from_list(url_items, browser_path, save_folder, minimize_bro
             limit_rate=limit_rate,
             settings_dict=settings_dict, 
             threads=threads,
-            is_pre_extracted=True # Tell it to not ask again
+            is_pre_extracted=(custom_name == "__INTERACTIVE__") 
         )
         elapsed_time = time.time() - start_time
         

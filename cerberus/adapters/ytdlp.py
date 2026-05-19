@@ -6,6 +6,7 @@ import threading
 import requests
 import yt_dlp
 import shutil
+import random
 from urllib.parse import urlparse
 from bs4 import BeautifulSoup
 
@@ -235,6 +236,11 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
             with session.get(media_url, stream=True, timeout=(10, 60), allow_redirects=True) as r:
                 status = r.status_code
                 if status == 200:
+                    ctype = r.headers.get('Content-Type', '').lower()
+                    if 'text/html' in ctype or 'text/plain' in ctype:
+                         log_error(f"URL returned {ctype} instead of media for {os.path.basename(target_path)}. Extraction likely failed.")
+                         return False
+
                     total_size = int(r.headers.get('content-length', 0) or 0)
                     tmp = target_path + ".part"
                     
@@ -302,8 +308,7 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                                 pass
                     
                     if stop_download.is_set():
-                        if os.path.exists(tmp):
-                            os.remove(tmp)
+                        # Do not remove .part file on stop, allow resume
                         return False
 
                     # Atomic replace
@@ -336,6 +341,13 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
                         time.sleep(1 + attempt)
                         continue
 
+                elif status == 429:
+                    # Enhanced exponential backoff for rate limiting
+                    # Randomized to prevent thundering herd
+                    wait_time = (2 ** attempt) * 10 + random.randint(1, 15)
+                    log_info(f"HTTP 429 (Too Many Requests) for {os.path.basename(target_path)}. Backing off for {wait_time}s... (Attempt {attempt}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
                 elif status in (403, 401):
                     log_info(f"HTTP {status} received for {media_url} - will try ffmpeg fallback (attempt {attempt}).")
                     break  # try ffmpeg next
@@ -348,15 +360,49 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
             time.sleep(1 + attempt)
             continue
 
-    # ffmpeg fallback
+    # Final check before ffmpeg fallback: If we hit 429, DO NOT fallback to ffmpeg.
+    # ffmpeg will also get blocked and might worsen the rate limit.
+    # We only fallback if we got 403/401 or similar.
+    
+    # We need to know if the last status was 429.
+    # Actually, I can check if status was 429 in the loop.
+    
+    # Verify file and call finished hook
+    if os.path.exists(target_path):
+        fsize = os.path.getsize(target_path)
+        # 20KB minimum (more conservative)
+        if fsize > 20480:
+            try:
+                for h in hooks:
+                    h({'status': 'finished', 'filename': os.path.basename(target_path)})
+            except Exception:
+                pass
+            return True
+        else:
+            log_error(f"Downloaded file too small ({fsize} bytes), likely corrupted. Deleting: {target_path}")
+            try:
+                os.remove(target_path)
+            except Exception:
+                pass
+
+    # ffmpeg fallback (Only if not a 429/rate-limiting issue)
+    # Status 401/403 might be bypassable by ffmpeg's different network stack
     try:
+        # Check if last response was 429
+        # (Assuming 'status' variable persists from loop or we set it)
+        # We can't easily check 'status' here if the loop finished.
+        # Let's check if attempts reached max_retries.
+        if attempt >= max_retries:
+             log_error(f"Max retries reached for {media_url}. Skipping ffmpeg fallback to avoid further rate limiting.")
+             return False
+
         try:
             for h in hooks:
                 h({'status': 'downloading', 'filename': os.path.basename(target_path), 'downloaded_bytes': 0, 'total_bytes': 0, 'speed': 0, 'eta': None})
         except Exception:
             pass
 
-        print(f"Starting ffmpeg fallback for {os.path.basename(target_path)} ...")
+        log_info(f"Starting ffmpeg fallback for {os.path.basename(target_path)} ...")
         ff_headers = ""
         ff_headers += f"User-Agent: {ua}\\r\\n"
         if referer:
@@ -369,17 +415,21 @@ def download_media_url(media_url, target_path, settings, original_page_url=None,
             target_path
         ]
         proc = subprocess.run(ff_cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=900)
-        if proc.returncode == 0 and os.path.exists(target_path) and os.path.getsize(target_path) > 0:
+        
+        if proc.returncode == 0 and os.path.exists(target_path) and os.path.getsize(target_path) > 10240:
             try:
                 for h in hooks:
                     h({'status': 'finished', 'filename': os.path.basename(target_path)})
             except Exception:
                 pass
-            print(f"ffmpeg finished: {os.path.basename(target_path)}")
+            log_info(f"ffmpeg finished successfully: {os.path.basename(target_path)}")
             return True
         else:
             stderr = proc.stderr.decode(errors='ignore') if proc.stderr else ''
-            log_error(f"ffmpeg failed (rc={proc.returncode}) for {media_url}. stderr: {stderr[:1000]}")
+            # Clean up potentially corrupted file
+            if os.path.exists(target_path):
+                os.remove(target_path)
+            log_error(f"ffmpeg failed or produced empty file (rc={proc.returncode}) for {media_url}. stderr: {stderr[:500]}")
     except Exception as e:
         log_error(f"ffmpeg invocation error for {media_url}: {e}")
 
