@@ -17,12 +17,7 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, windows-2022]
-        include:
-          - os: ubuntu-latest
-            asset_name: cerberus-linux
-          - os: windows-2022
-            asset_name: cerberus.exe
+        os: [ubuntu-latest, windows-latest]
 
     steps:
     - uses: actions/checkout@v4
@@ -42,14 +37,14 @@ jobs:
         pip install .
 
     - name: Build with PyInstaller (Linux)
-      if: matrix.os == 'ubuntu-latest'
+      if: runner.os == 'Linux'
       run: |
         pyinstaller --onefile --name cerberus-linux cerberus/__main__.py
         echo "Build complete for Linux"
         ls -l dist/
 
     - name: Build with PyInstaller (Windows)
-      if: matrix.os == 'windows-latest'
+      if: runner.os == 'Windows'
       run: |
         pyinstaller --onefile --name cerberus cerberus/__main__.py
         echo "Build complete for Windows"
