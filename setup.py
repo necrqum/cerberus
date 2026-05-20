@@ -3,7 +3,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="cerberus",
-    version="0.2.3",
+    version="0.2.4",
     author="necrqum",
     author_email="Pr0gr4mming12@gmail.com",
     description="Video-Downloader based on Selenium und yt_dlp",
